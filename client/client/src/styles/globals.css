@@ -1,0 +1,59 @@
+@import "tailwindcss";
+@import "./variables.css";
+
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-bg-color: var(--bg-color);
+  --color-surface: var(--surface);
+  --color-text-heading: var(--text-heading);
+  --color-text-body: var(--text-body);
+  --color-text-muted: var(--text-muted);
+  --color-border-color: var(--border-color);
+  
+  --font-heading: var(--font-heading);
+  --font-sans: var(--font-body);
+  
+  --shadow-premium: var(--shadow-premium);
+}
+
+@layer base {
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-body);
+    font-family: var(--font-body);
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    color: var(--text-heading);
+  }
+}
+
+/* Micro-animations and common interactive classes */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-ripple:hover {
+  transform: translateY(-1px);
+}
+
+.btn-ripple:active {
+  transform: translateY(1px);
+}
+
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px -8px rgba(14, 124, 134, 0.12);
+}
