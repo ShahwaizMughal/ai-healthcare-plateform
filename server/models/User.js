@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const userSchema = new Schema(
   {
@@ -13,8 +14,8 @@ const userSchema = new Schema(
       type: String,
       required: [true, 'Email is required'],
       unique: true,
-      trim: true,
       lowercase: true,
+      trim: true,
       match: [
         /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
         'Please provide a valid email address',
@@ -25,15 +26,20 @@ const userSchema = new Schema(
       required: [true, 'Phone number is required'],
       trim: true,
     },
-    passwordHash: {
+    password: {
       type: String,
       required: [true, 'Password is required'],
+      minlength: [8, 'Password must be at least 8 characters'],
       select: false,
     },
     role: {
       type: String,
-      enum: ['patient', 'admin'],
-      default: 'patient',
+      enum: ['user', 'admin'],
+      default: 'user',
+    },
+    profileImage: {
+      type: String,
+      default: '',
     },
     isActive: {
       type: Boolean,
@@ -52,5 +58,10 @@ const userSchema = new Schema(
     timestamps: true,
   }
 );
+
+// Instance method to compare entered password with the stored hash
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 export default model('User', userSchema);

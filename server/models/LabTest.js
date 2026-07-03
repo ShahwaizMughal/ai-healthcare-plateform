@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
 
+// Represents a single lab test in the catalog
 const labTestSchema = new Schema(
   {
     name: {
@@ -9,8 +10,8 @@ const labTestSchema = new Schema(
     },
     description: {
       type: String,
-      required: [true, 'Description is required'],
-      maxlength: [500, 'Description cannot exceed 500 characters'],
+      trim: true,
+      default: '',
     },
     price: {
       type: Number,
@@ -19,8 +20,8 @@ const labTestSchema = new Schema(
     },
     category: {
       type: String,
-      default: 'General',
-      trim: true,
+      required: [true, 'Category is required'],
+      enum: ['Blood Test', 'Imaging', 'Cardiac', 'General Health', 'Diabetes', 'Other'],
     },
     isActive: {
       type: Boolean,
@@ -32,7 +33,7 @@ const labTestSchema = new Schema(
   }
 );
 
-// Indexes
+// Index on category per Section 9.6 (grouped rendering / filtering)
 labTestSchema.index({ category: 1 });
 
 export default model('LabTest', labTestSchema);

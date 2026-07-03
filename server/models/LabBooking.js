@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
 
+// A patient's request to book a lab test
 const labBookingSchema = new Schema(
   {
     labTestId: {
@@ -21,10 +22,20 @@ const labBookingSchema = new Schema(
       type: String,
       required: [true, 'Contact phone is required'],
       trim: true,
+      match: [/^\d{10,15}$/, 'contactPhone must be 10-15 digits'],
     },
     preferredDate: {
       type: Date,
       required: [true, 'Preferred date is required'],
+      validate: {
+        // Preferred date must not be in the past
+        validator(value) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          return value >= today;
+        },
+        message: 'preferredDate cannot be in the past',
+      },
     },
     status: {
       type: String,
