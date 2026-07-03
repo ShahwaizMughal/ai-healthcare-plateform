@@ -1,0 +1,106 @@
+export default [
+  {
+    name: "Paracetamol",
+    description: "Effective for fast pain relief and fever reduction. Commonly used to treat headaches, muscle aches, arthritis, backache, toothaches, colds, and fevers.",
+    dosage: "500mg",
+    category: "Pain Relief",
+    price: 150,
+    imageUrl: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200&auto=format&fit=crop",
+    stockQuantity: 100,
+    requiresPrescription: false,
+    averageRating: 4.5,
+    reviewCount: 1,
+    isActive: true
+  },
+  {
+    name: "Amoxicillin",
+    description: "A penicillin-type antibiotic used to treat a wide variety of bacterial infections, such as middle ear infections, strep throat, pneumonia, skin infections, and urinary tract infections.",
+    dosage: "250mg",
+    category: "Antibiotics",
+    price: 450,
+    imageUrl: "https://images.unsplash.com/photo-1607619056574-7b8f304b3b89?q=80&w=200&auto=format&fit=crop",
+    stockQuantity: 40,
+    requiresPrescription: true,
+    averageRating: 4.2,
+    reviewCount: 1,
+    isActive: true
+  },
+  {
+    name: "Vitamin C Chewable",
+    description: "Supports healthy immune system function, wound healing, and acts as a powerful antioxidant. Refreshing orange flavor chewable tablet.",
+    dosage: "500mg",
+    category: "Vitamins",
+    price: 350,
+    imageUrl: "https://images.unsplash.com/photo-1616679911721-eff6eec18fcd?q=80&w=200&auto=format&fit=crop",
+    stockQuantity: 150,
+    requiresPrescription: false,
+    averageRating: 4.8,
+    reviewCount: 3,
+    isActive: true
+  },
+  {
+    name: "Moisturizing Cream",
+    description: "Specially formulated dermatologist-recommended cream to hydrate dry, sensitive skin. Non-greasy, fast-absorbing, and fragrance-free.",
+    dosage: "100g",
+    category: "Skin Care",
+    price: 800,
+    imageUrl: "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?q=80&w=200&auto=format&fit=crop",
+    stockQuantity: 25,
+    requiresPrescription: false,
+    averageRating: 4.6,
+    reviewCount: 2,
+    isActive: true
+  },
+  {
+    name: "Panadol Cold & Flu",
+    description: "Multisymptom relief for cold and flu symptoms. Reduces nasal congestion, minor body aches, sore throat, sinus pain, and reduces fever.",
+    dosage: "500mg",
+    category: "Cold & Flu",
+    price: 250,
+    imageUrl: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200&auto=format&fit=crop",
+    stockQuantity: 80,
+    requiresPrescription: false,
+    averageRating: 4.4,
+    reviewCount: 1,
+    isActive: true
+  },
+  {
+    name: "Azithromycin",
+    description: "An antibiotic used to treat various bacterial infections, including respiratory infections, skin infections, ear infections, and sexually transmitted diseases.",
+    dosage: "500mg",
+    category: "Antibiotics",
+    price: 600,
+    imageUrl: "https://images.unsplash.com/photo-1607619056574-7b8f304b3b89?q=80&w=200&auto=format&fit=crop",
+    stockQuantity: 0, // Out of stock to test out-of-stock badge
+    requiresPrescription: true,
+    averageRating: 4.3,
+    reviewCount: 1,
+    isActive: true
+  },
+  {
+    name: "Ibuprofen",
+    description: "Nonsteroidal anti-inflammatory drug (NSAID) used to reduce hormones that cause pain and inflammation in the body. Treats headache, fever, toothache, and menstrual cramps.",
+    dosage: "400mg",
+    category: "Pain Relief",
+    price: 180,
+    imageUrl: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200&auto=format&fit=crop",
+    stockQuantity: 95,
+    requiresPrescription: false,
+    averageRating: 4.5,
+    reviewCount: 2,
+    isActive: true
+  },
+  {
+    name: "Multivitamin A-Z Daily",
+    description: "Complete daily multivitamin complex designed to provide essential vitamins and minerals for energy, immunity, and overall body vitality.",
+    dosage: "1 tab",
+    category: "Vitamins",
+    price: 1200,
+    imageUrl: "https://images.unsplash.com/photo-1616679911721-eff6eec18fcd?q=80&w=200&auto=format&fit=crop",
+    stockQuantity: 60,
+    requiresPrescription: false,
+    averageRating: 4.7,
+    reviewCount: 1,
+    isActive: true
+  }
+];
