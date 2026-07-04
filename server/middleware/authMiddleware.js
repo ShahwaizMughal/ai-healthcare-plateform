@@ -1,12 +1,12 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
 /**
  * protect middleware — verifies the JWT from the Authorization header.
  * Attaches the authenticated user to req.user for downstream controllers.
  * Usage: router.get('/me', protect, getCurrentUser)
  */
-const protect = async (req, res, next) => {
+export const protect = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
 
@@ -42,5 +42,3 @@ const protect = async (req, res, next) => {
         return res.status(401).json({ message: 'Invalid token. Please log in again.' });
     }
 };
-
-module.exports = { protect };

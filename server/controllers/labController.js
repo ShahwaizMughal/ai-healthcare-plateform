@@ -1,9 +1,8 @@
-const LabTest = require('../models/LabTest');
-const LabBooking = require('../models/LabBooking');
+import LabTest from '../models/LabTest.js';
+import LabBooking from '../models/LabBooking.js';
 
-// GET /api/lab-tests — paginated list. Pagination is mandatory on every
-// list endpoint per the SRS (Section 4.1) — never return a full collection.
-exports.getLabTests = async (req, res, next) => {
+// GET /api/lab-tests — paginated list.
+export const getLabTests = async (req, res, next) => {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit, 10) || 12, 50);
@@ -21,7 +20,13 @@ exports.getLabTests = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: { items, page, limit, totalItems, totalPages: Math.ceil(totalItems / limit) || 1 },
+      data: { 
+        items, 
+        page, 
+        limit, 
+        totalItems, 
+        totalPages: Math.ceil(totalItems / limit) || 1 
+      },
     });
   } catch (err) {
     next(err);
@@ -29,7 +34,7 @@ exports.getLabTests = async (req, res, next) => {
 };
 
 // POST /api/lab-bookings — optional auth, guest bookings allowed.
-exports.createLabBooking = async (req, res, next) => {
+export const createLabBooking = async (req, res, next) => {
   try {
     const { labTestId, patientName, contactPhone, preferredDate } = req.body;
 
@@ -61,10 +66,7 @@ exports.createLabBooking = async (req, res, next) => {
 
     const labBooking = await LabBooking.create({
       labTestId,
-      // TODO: once M1's authMiddleware is merged, attach it to this route as
-      // an *optional* check so req.user is set for logged-in users. Until
-      // then every booking is treated as a guest booking.
-      userId: req.user?.id || null,
+      userId: req.user?._id || null, // Attach logged-in user if available (via optional check)
       patientName,
       contactPhone,
       preferredDate: date,

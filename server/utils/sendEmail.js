@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 /**
  * sendEmail — sends an HTML email via Nodemailer using SMTP credentials from .env
@@ -11,7 +11,7 @@ const sendEmail = async ({ to, subject, html }) => {
     // Create reusable transporter using SMTP credentials from environment variables
     const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.EMAIL_PORT) || 587,
+        port: parseInt(process.env.EMAIL_PORT, 10) || 587,
         secure: false, // true for 465, false for other ports
         auth: {
             user: process.env.EMAIL_USER,
@@ -29,4 +29,4 @@ const sendEmail = async ({ to, subject, html }) => {
     await transporter.sendMail(mailOptions);
 };
 
-module.exports = sendEmail;
+export default sendEmail;

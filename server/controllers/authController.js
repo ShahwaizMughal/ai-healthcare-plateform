@@ -1,14 +1,14 @@
-const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
-const User = require('../models/User');
-const generateToken = require('../utils/generateToken');
-const sendEmail = require('../utils/sendEmail');
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import User from '../models/User.js';
+import generateToken from '../utils/generateToken.js';
+import sendEmail from '../utils/sendEmail.js';
 
 // ─────────────────────────────────────────────
 // POST /api/auth/signup
 // Register a new patient account (auto-login after signup)
 // ─────────────────────────────────────────────
-const registerUser = async (req, res) => {
+export const registerUser = async (req, res) => {
     try {
         const { fullName, email, phone, password } = req.body;
 
@@ -56,7 +56,7 @@ const registerUser = async (req, res) => {
 // POST /api/auth/login
 // Authenticate user with email + password
 // ─────────────────────────────────────────────
-const loginUser = async (req, res) => {
+export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -104,7 +104,7 @@ const loginUser = async (req, res) => {
 // Returns the currently authenticated user's profile
 // Used on every app load to restore session (SRS Section 5.1)
 // ─────────────────────────────────────────────
-const getCurrentUser = async (req, res) => {
+export const getCurrentUser = async (req, res) => {
     try {
         // req.user is set by the protect middleware (excludes password)
         res.status(200).json({
@@ -122,7 +122,7 @@ const getCurrentUser = async (req, res) => {
 // Logout — frontend should clear the localStorage token.
 // This endpoint exists so we can invalidate server-side state in the future.
 // ─────────────────────────────────────────────
-const logoutUser = async (req, res) => {
+export const logoutUser = async (req, res) => {
     try {
         // With localStorage-based JWT, logout is handled on the frontend.
         // This endpoint confirms the action and allows future server-side cleanup.
@@ -140,7 +140,7 @@ const logoutUser = async (req, res) => {
 // POST /api/auth/forgot-password
 // Step 1: Generate reset token and email it to the user (SRS Section 3.1.4)
 // ─────────────────────────────────────────────
-const forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
 
@@ -169,7 +169,7 @@ const forgotPassword = async (req, res) => {
         await user.save({ validateBeforeSave: false });
 
         // Build the reset URL that will be embedded in the email
-        const resetURL = `${process.env.CLIENT_URL}/reset-password/${rawToken}`;
+        const resetURL = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${rawToken}`;
 
         const emailContent = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -219,7 +219,7 @@ const forgotPassword = async (req, res) => {
 // POST /api/auth/reset-password/:token
 // Step 2: Verify token, update password, clear reset fields (SRS Section 3.1.4)
 // ─────────────────────────────────────────────
-const resetPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
     try {
         const { token } = req.params;
         const { password, confirmPassword } = req.body;
@@ -270,13 +270,4 @@ const resetPassword = async (req, res) => {
         console.error('Reset password error:', error.message);
         res.status(500).json({ message: 'Server error. Please try again.' });
     }
-};
-
-module.exports = {
-    registerUser,
-    loginUser,
-    getCurrentUser,
-    logoutUser,
-    forgotPassword,
-    resetPassword,
 };

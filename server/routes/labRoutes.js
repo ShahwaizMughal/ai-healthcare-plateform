@@ -1,7 +1,9 @@
-const router = require('express').Router();
-const { getLabTests, createLabBooking } = require('../controllers/labController');
+import express from 'express';
+import { getLabTests, createLabBooking } from '../controllers/labController.js';
+
+const router = express.Router();
 
 router.get('/lab-tests', getLabTests);
 router.post('/lab-bookings', createLabBooking);
 
-module.exports = router;
+export default router;

@@ -1,7 +1,7 @@
-const EmergencyContact = require('../models/EmergencyContact');
+import EmergencyContact from '../models/EmergencyContact.js';
 
 // GET /api/emergency-contacts — grouped by category.
-exports.getEmergencyContacts = async (req, res, next) => {
+export const getEmergencyContacts = async (req, res, next) => {
   try {
     const contacts = await EmergencyContact.find().sort({ category: 1, name: 1 });
 

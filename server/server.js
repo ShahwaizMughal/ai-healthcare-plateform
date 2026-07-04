@@ -1,10 +1,14 @@
-const express = require('express');
-const cors = require('cors');
-const cookieParser = require('cookie-parser');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const connectDB = require('./config/db');
-const authRoutes = require('./routes/authRoutes');
+import connectDB from './config/db.js';
+import authRoutes from './routes/authRoutes.js';
+import emergencyRoutes from './routes/emergencyRoutes.js';
+import labRoutes from './routes/labRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 // Connect to MongoDB
 connectDB();
@@ -34,6 +38,9 @@ app.use('/uploads', express.static('uploads'));
 // API Routes
 // ─────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api', emergencyRoutes); // Mounted at root level to map /api/emergency-contacts
+app.use('/api', labRoutes);       // Mounted to map /api/lab-tests and /api/lab-bookings
+app.use('/api/admin', adminRoutes); // Secured admin routes
 
 // Health check route — useful for deployment verification
 app.get('/', (req, res) => {
@@ -41,9 +48,9 @@ app.get('/', (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// 404 Handler — for any unmatched routes (Express v5 syntax)
+// 404 Handler — for any unmatched routes
 // ─────────────────────────────────────────────
-app.use('/{*path}', (req, res) => {
+app.use((req, res) => {
     res.status(404).json({ message: `Route ${req.originalUrl} not found` });
 });
 

@@ -1,16 +1,15 @@
-const express = require('express');
-const router = express.Router();
-
-const {
+import express from 'express';
+import {
     registerUser,
     loginUser,
     getCurrentUser,
     logoutUser,
     forgotPassword,
     resetPassword,
-} = require('../controllers/authController');
+} from '../controllers/authController.js';
+import { protect } from '../middleware/authMiddleware.js';
 
-const { protect } = require('../middleware/authMiddleware');
+const router = express.Router();
 
 // ─────────────────────────────────────────────
 // Public routes — no authentication required
@@ -38,4 +37,4 @@ router.get('/me', protect, getCurrentUser);
 // POST /api/auth/logout — Logout (frontend clears localStorage; this confirms server-side)
 router.post('/logout', protect, logoutUser);
 
-module.exports = router;
+export default router;

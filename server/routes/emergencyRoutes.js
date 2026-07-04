@@ -1,6 +1,8 @@
-const router = require('express').Router();
-const { getEmergencyContacts } = require('../controllers/emergencyController');
+import express from 'express';
+import { getEmergencyContacts } from '../controllers/emergencyController.js';
+
+const router = express.Router();
 
 router.get('/emergency-contacts', getEmergencyContacts);
 
-module.exports = router;
+export default router;
