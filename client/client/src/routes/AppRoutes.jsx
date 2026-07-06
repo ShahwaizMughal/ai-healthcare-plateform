@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import SplashPage from '../pages/auth/SplashPage';
 import LoginPage from '../pages/auth/LoginPage';
 import SignupPage from '../pages/auth/SignupPage';
@@ -7,6 +7,17 @@ import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
 import PrivateRoute from './PrivateRoute';
 import AdminRoute from './AdminRoute';
 import useAuth from '../hooks/useAuth';
+
+// Layout & Dashboard imports
+import AdminLayout from '../components/layout/AdminLayout';
+import Dashboard from '../pages/admin/Dashboard';
+import ManageDoctors from '../pages/admin/ManageDoctors';
+import ManageMedicines from '../pages/admin/ManageMedicines';
+import ManageBlogs from '../pages/admin/ManageBlogs';
+import ManageAppointments from '../pages/admin/ManageAppointments';
+import ManageOrder from '../pages/admin/ManageOrder';
+import ManageLabBookings from '../pages/admin/ManageLabBookings';
+import ContactMessages from '../pages/admin/ContactMessages';
 
 // Lightweight placeholders for other team members' pages
 const HomePlaceholder = () => {
@@ -27,37 +38,6 @@ const HomePlaceholder = () => {
     </div>
   );
 };
-
-const AdminPlaceholder = () => {
-  const { user, logout } = useAuth();
-  return (
-    <div className="min-h-screen bg-bg-color flex flex-col items-center justify-center p-6 text-center font-sans">
-      <div className="bg-surface p-8 rounded-2xl shadow-premium max-w-md w-full border border-border-color/10">
-        <h1 className="text-3xl font-bold text-secondary font-heading mb-4">Admin Dashboard</h1>
-        <p className="text-text-body mb-2 font-semibold">Welcome, Administrator {user?.fullName}!</p>
-        <p className="text-text-muted text-sm mb-6">Restricted access control dashboard.</p>
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={logout}
-            className="bg-danger hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 shadow-sm cursor-pointer"
-          >
-            Log Out
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const NotFound = () => (
-  <div className="min-h-screen flex flex-col items-center justify-center text-center font-sans bg-bg-color">
-    <h1 className="text-6xl font-bold text-primary font-heading mb-4">404</h1>
-    <p className="text-text-body mb-6 text-lg">Page not found.</p>
-    <Link to="/" className="bg-primary text-white font-semibold py-2 px-6 rounded-lg shadow hover:bg-primary-dark transition-colors">
-      Go Home
-    </Link>
-  </div>
-);
 
 export const AppRoutes = () => {
   return (
@@ -81,7 +61,16 @@ export const AppRoutes = () => {
 
       {/* Protected Admin-only Pages */}
       <Route element={<AdminRoute />}>
-        <Route path="/admin/*" element={<AdminPlaceholder />} />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="doctors" element={<ManageDoctors />} />
+          <Route path="medicines" element={<ManageMedicines />} />
+          <Route path="blogs" element={<ManageBlogs />} />
+          <Route path="appointments" element={<ManageAppointments />} />
+          <Route path="orders" element={<ManageOrder />} />
+          <Route path="lab-bookings" element={<ManageLabBookings />} />
+          <Route path="messages" element={<ContactMessages />} />
+        </Route>
       </Route>
 
       {/* Catch-all */}
@@ -89,7 +78,5 @@ export const AppRoutes = () => {
     </Routes>
   );
 };
-
-import { Link } from 'react-router-dom';
 
 export default AppRoutes;
