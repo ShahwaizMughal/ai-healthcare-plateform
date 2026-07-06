@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MdClose, MdShoppingCart, MdVisibility } from 'react-icons/md';
+import { MdClose, MdShoppingCart, MdVisibility, MdWarning, MdRefresh } from 'react-icons/md';
 
 export const ManageOrder = () => {
   const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [viewingOrder, setViewingOrder] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
+
+  // Custom confirmation overlays for critical status transitions (cancelled / delivered)
+  const [pendingStatusChange, setPendingStatusChange] = useState(null); // { id, status }
 
   const fetchOrders = async (page = 1) => {
     setLoading(true);
+    setError(null);
     try {
       const res = await api.get(`/admin/orders?page=${page}&limit=10`);
       setOrders(res?.items || []);
@@ -19,7 +25,8 @@ export const ManageOrder = () => {
         totalPages: res?.totalPages || 1
       });
     } catch (err) {
-      toast.error(err.message || 'Failed to fetch order invoices.');
+      setError(err.message || 'Could not retrieve orders invoices.');
+      toast.error('Network Error: Failed to contact the server.');
     } finally {
       setLoading(false);
     }
@@ -29,14 +36,25 @@ export const ManageOrder = () => {
     fetchOrders(1);
   }, []);
 
-  const handleStatusChange = async (id, newStatus) => {
+  const handleStatusChangeClick = (id, newStatus) => {
+    if (newStatus === 'cancelled' || newStatus === 'delivered') {
+      setPendingStatusChange({ id, status: newStatus });
+    } else {
+      executeStatusChange(id, newStatus);
+    }
+  };
+
+  const executeStatusChange = async (id, newStatus) => {
+    setUpdatingId(id);
     try {
-      // PATCH /api/admin/orders/:id/status
       await api.patch(`/admin/orders/${id}/status`, { status: newStatus });
-      toast.success(`Order fulfillment status updated to ${newStatus}.`);
+      toast.success(`Order status updated to ${newStatus}.`);
       fetchOrders(pagination.page);
     } catch (err) {
-      toast.error(err.message || 'Failed to transition order status.');
+      toast.error(err.message || 'Failed to update order status.');
+    } finally {
+      setUpdatingId(null);
+      setPendingStatusChange(null);
     }
   };
 
@@ -55,6 +73,28 @@ export const ManageOrder = () => {
         return 'bg-bg-color border-border-color/30 text-text-muted';
     }
   };
+
+  // Connection failure fallback banner
+  if (error) {
+    return (
+      <div className="bg-white p-12 text-center rounded-2xl border border-danger/25 shadow-sm max-w-lg mx-auto my-8 space-y-4">
+        <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center text-danger mx-auto">
+          <MdWarning size={32} />
+        </div>
+        <h3 className="font-heading font-bold text-text-heading text-lg">Connection Failure</h3>
+        <p className="text-text-muted text-sm leading-relaxed">
+          Could not connect to the pharmacy database server. Please check your network connection and verify if the service is running.
+        </p>
+        <button
+          onClick={() => { setError(null); fetchOrders(1); }}
+          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer mx-auto"
+        >
+          <MdRefresh size={16} />
+          <span>Try Again</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -114,8 +154,9 @@ export const ManageOrder = () => {
                       <td className="p-4">
                         <select
                           value={ord.status}
-                          onChange={(e) => handleStatusChange(ord._id, e.target.value)}
-                          className={`px-2.5 py-1 text-xs font-semibold rounded-full border border-transparent focus:outline-none focus:border-border-color/30 cursor-pointer ${getStatusClass(ord.status)}`}
+                          disabled={updatingId === ord._id}
+                          onChange={(e) => handleStatusChangeClick(ord._id, e.target.value)}
+                          className={`px-2.5 py-1 text-xs font-semibold rounded-full border border-transparent focus:outline-none focus:border-border-color/30 cursor-pointer disabled:opacity-50 ${getStatusClass(ord.status)}`}
                         >
                           <option value="placed" className="bg-white text-text-muted">Placed</option>
                           <option value="processing" className="bg-white text-warning">Processing</option>
@@ -254,6 +295,40 @@ export const ManageOrder = () => {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Custom status transition safety overlays (cancelled / delivered) */}
+      {pendingStatusChange && (
+        <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-border-color/10 shadow-premium p-6 space-y-4 text-center">
+            <div className="w-14 h-14 bg-danger/10 text-danger rounded-full flex items-center justify-center mx-auto">
+              <MdWarning size={28} />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-heading font-bold text-text-heading text-lg">Confirm Status Transition?</h3>
+              <p className="text-text-muted text-sm leading-relaxed">
+                Are you sure you want to change this order status to <strong className="text-text-heading capitalize">{pendingStatusChange.status}</strong>? 
+                Once updated, this triggers stock logic and affects invoice statistics.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => setPendingStatusChange(null)}
+                className="px-4.5 py-2 border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => executeStatusChange(pendingStatusChange.id, pendingStatusChange.status)}
+                className="px-4.5 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
+              >
+                Confirm Change
+              </button>
+            </div>
           </div>
         </div>
       )}

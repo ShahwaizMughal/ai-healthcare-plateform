@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdClose, MdBook } from 'react-icons/md';
+import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdClose, MdWarning, MdBook, MdRefresh } from 'react-icons/md';
 
 export const ManageBlogs = () => {
   const [blogs, setBlogs] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBlog, setEditingBlog] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Form Fields
+  // Custom Deactivation confirmation overlays
+  const [confirmDeactivate, setConfirmDeactivate] = useState(null);
+
+  // Form Fields & Validation errors
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -21,6 +26,7 @@ export const ManageBlogs = () => {
     content: '',
     status: 'draft'
   });
+  const [validationErrors, setValidationErrors] = useState({});
 
   const categoriesList = [
     'Nutrition', 'Fitness', 'Mental Health', 'Preventative Care', 
@@ -29,6 +35,7 @@ export const ManageBlogs = () => {
 
   const fetchBlogs = async (page = 1) => {
     setLoading(true);
+    setError(null);
     try {
       const res = await api.get(`/admin/blogs?page=${page}&limit=8`);
       setBlogs(res?.items || []);
@@ -37,7 +44,8 @@ export const ManageBlogs = () => {
         totalPages: res?.totalPages || 1
       });
     } catch (err) {
-      toast.error(err.message || 'Failed to fetch article publications.');
+      setError(err.message || 'Could not retrieve publication articles.');
+      toast.error('Network Error: Failed to contact the server.');
     } finally {
       setLoading(false);
     }
@@ -51,9 +59,9 @@ export const ManageBlogs = () => {
     return text
       .toLowerCase()
       .trim()
-      .replace(/[^a-z0-9\s-]/g, '') // remove special chars
-      .replace(/[\s_]+/g, '-')     // replace spaces/underscores with hyphens
-      .replace(/-+/g, '-');        // replace multiple hyphens with single
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/[\s_]+/g, '-')
+      .replace(/-+/g, '-');
   };
 
   const handleTitleChange = (e) => {
@@ -63,15 +71,41 @@ export const ManageBlogs = () => {
       title: titleVal,
       slug: generateSlug(titleVal)
     }));
+    if (validationErrors.title) {
+      setValidationErrors(prev => ({ ...prev, title: null }));
+    }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({ ...prev, [name]: null }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.title.trim() || formData.title.trim().length < 10) {
+      errors.title = 'Title must be at least 10 characters long.';
+    }
+    if (!formData.author.trim()) {
+      errors.author = 'Author name is required.';
+    }
+    if (!formData.summary.trim() || formData.summary.trim().length < 15) {
+      errors.summary = 'Summary excerpt must be at least 15 characters long.';
+    }
+    if (!formData.content.trim() || formData.content.trim().length < 50) {
+      errors.content = 'Article content must be at least 50 characters long.';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const openAddModal = () => {
     setEditingBlog(null);
+    setValidationErrors({});
     setFormData({
       title: '',
       slug: '',
@@ -87,6 +121,7 @@ export const ManageBlogs = () => {
 
   const openEditModal = (blog) => {
     setEditingBlog(blog);
+    setValidationErrors({});
     setFormData({
       title: blog.title || '',
       slug: blog.slug || '',
@@ -102,51 +137,86 @@ export const ManageBlogs = () => {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    
+    if (!validateForm()) {
+      toast.error('Please correct the validation errors first.');
+      return;
+    }
+
+    setSubmitting(true);
     const payload = {
-      title: formData.title,
+      title: formData.title.trim(),
       slug: formData.slug,
       category: formData.category,
-      author: formData.author,
-      coverImageUrl: formData.coverImageUrl,
-      summary: formData.summary,
-      content: formData.content,
+      author: formData.author.trim(),
+      coverImageUrl: formData.coverImageUrl.trim(),
+      summary: formData.summary.trim(),
+      content: formData.content.trim(),
       status: formData.status
     };
 
     try {
       if (editingBlog) {
-        // Edit PUT /api/admin/blogs/:id
         await api.put(`/admin/blogs/${editingBlog._id}`, payload);
         toast.success('Blog publication updated.');
       } else {
-        // Add POST /api/admin/blogs
-        await api.post('/blogs', payload); // maps to POST /api/admin/blogs
+        await api.post('/blogs', payload);
         toast.success('New blog post created.');
       }
       setIsModalOpen(false);
       fetchBlogs(pagination.page);
     } catch (err) {
       toast.error(err.message || 'Operation failed.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleToggleStatus = async (id, currentStatus) => {
+  const handleToggleStatusClick = (blog) => {
+    if (blog.status === 'published') {
+      setConfirmDeactivate(blog);
+    } else {
+      executeToggleStatus(blog._id, 'draft'); // Publish immediately
+    }
+  };
+
+  const executeToggleStatus = async (id, currentStatus) => {
     try {
       if (currentStatus === 'published') {
-        // Soft delete sets status to 'draft'
         await api.delete(`/blogs/${id}`);
-        toast.success('Blog status reverted to Draft.');
+        toast.success('Blog post status reverted to Draft.');
       } else {
-        // Update sets status to 'published'
         await api.put(`/blogs/${id}`, { status: 'published' });
-        toast.success('Blog published successfully.');
+        toast.success('Blog post published successfully.');
       }
       fetchBlogs(pagination.page);
     } catch (err) {
       toast.error(err.message || 'Status update failed.');
+    } finally {
+      setConfirmDeactivate(null);
     }
   };
+
+  // Connection failure fallback banner
+  if (error) {
+    return (
+      <div className="bg-white p-12 text-center rounded-2xl border border-danger/25 shadow-sm max-w-lg mx-auto my-8 space-y-4">
+        <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center text-danger mx-auto">
+          <MdWarning size={32} />
+        </div>
+        <h3 className="font-heading font-bold text-text-heading text-lg">Connection Failure</h3>
+        <p className="text-text-muted text-sm leading-relaxed">
+          Could not connect to the clinical database server. Please check your network connection and verify if the service is running.
+        </p>
+        <button
+          onClick={() => { setError(null); fetchBlogs(1); }}
+          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer mx-auto"
+        >
+          <MdRefresh size={16} />
+          <span>Try Again</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -232,7 +302,7 @@ export const ManageBlogs = () => {
                             <MdEdit size={20} />
                           </button>
                           <button
-                            onClick={() => handleToggleStatus(blog._id, blog.status)}
+                            onClick={() => handleToggleStatusClick(blog)}
                             className={`p-1 rounded transition-colors cursor-pointer ${
                               blog.status === 'published' ? 'text-success hover:text-danger' : 'text-danger hover:text-success'
                             }`}
@@ -304,9 +374,14 @@ export const ManageBlogs = () => {
                   required
                   value={formData.title}
                   onChange={handleTitleChange}
-                  className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary ${
+                    validationErrors.title ? 'border-danger focus:border-danger' : 'border-border-color/30'
+                  }`}
                   placeholder="e.g. 10 Tips for Cardiovascular Health"
                 />
+                {validationErrors.title && (
+                  <p className="text-[11px] text-danger font-semibold">{validationErrors.title}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -329,7 +404,7 @@ export const ManageBlogs = () => {
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary bg-white"
                   >
                     {categoriesList.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -348,8 +423,13 @@ export const ManageBlogs = () => {
                     required
                     value={formData.author}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary"
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary ${
+                      validationErrors.author ? 'border-danger focus:border-danger' : 'border-border-color/30'
+                    }`}
                   />
+                  {validationErrors.author && (
+                    <p className="text-[11px] text-danger font-semibold">{validationErrors.author}</p>
+                  )}
                 </div>
 
                 {/* Status Selection */}
@@ -359,7 +439,7 @@ export const ManageBlogs = () => {
                     name="status"
                     value={formData.status}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary bg-white"
                   >
                     <option value="draft">Draft</option>
                     <option value="published">Published</option>
@@ -389,9 +469,14 @@ export const ManageBlogs = () => {
                   required
                   value={formData.summary}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary ${
+                    validationErrors.summary ? 'border-danger focus:border-danger' : 'border-border-color/30'
+                  }`}
                   placeholder="Provide a quick 1-sentence synopsis of the article..."
                 />
+                {validationErrors.summary && (
+                  <p className="text-[11px] text-danger font-semibold">{validationErrors.summary}</p>
+                )}
               </div>
 
               {/* Full Content */}
@@ -403,29 +488,70 @@ export const ManageBlogs = () => {
                   required
                   value={formData.content}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary resize-none font-mono"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary resize-none font-mono ${
+                    validationErrors.content ? 'border-danger focus:border-danger' : 'border-border-color/30'
+                  }`}
                   placeholder="Write the full health guide or medical update content here..."
                 />
+                {validationErrors.content && (
+                  <p className="text-[11px] text-danger font-semibold">{validationErrors.content}</p>
+                )}
               </div>
 
               {/* Modal Actions */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-border-color/10">
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color transition-all cursor-pointer"
+                  className="px-4 py-2 border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color transition-all cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm disabled:opacity-75"
                 >
-                  {editingBlog ? 'Save Changes' : 'Publish Post'}
+                  {submitting ? 'Publishing...' : editingBlog ? 'Save Changes' : 'Publish Post'}
                 </button>
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom absolute-overlay confirmation modal for Deactivations */}
+      {confirmDeactivate && (
+        <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-border-color/10 shadow-premium p-6 space-y-4 text-center">
+            <div className="w-14 h-14 bg-danger/10 text-danger rounded-full flex items-center justify-center mx-auto">
+              <MdWarning size={28} />
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="font-heading font-bold text-text-heading text-lg">Revert Article to Draft?</h3>
+              <p className="text-text-muted text-sm leading-relaxed">
+                Are you sure you want to revert <strong className="text-text-heading">"{confirmDeactivate.title}"</strong> to draft? 
+                This will unpublish the article and hide it from the patient blog feed index.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => setConfirmDeactivate(null)}
+                className="px-4.5 py-2 border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => executeToggleStatus(confirmDeactivate._id, 'published')}
+                className="px-4.5 py-2 bg-danger hover:bg-red-600 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
+              >
+                Revert to Draft
+              </button>
+            </div>
           </div>
         </div>
       )}

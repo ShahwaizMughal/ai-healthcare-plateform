@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdClose, MdWarning } from 'react-icons/md';
+import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdClose, MdWarning, MdRefresh } from 'react-icons/md';
 
 export const ManageMedicines = () => {
   const [medicines, setMedicines] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Form Fields
+  // Custom Deactivation modal overlays
+  const [confirmDeactivate, setConfirmDeactivate] = useState(null);
+
+  // Form Fields & Validation errors
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -21,6 +26,7 @@ export const ManageMedicines = () => {
     stockQuantity: 100,
     requiresPrescription: false
   });
+  const [validationErrors, setValidationErrors] = useState({});
 
   const categoriesList = [
     'Analgesics', 'Antibiotics', 'Antiviral', 'Cardiovascular', 
@@ -29,6 +35,7 @@ export const ManageMedicines = () => {
 
   const fetchMedicines = async (page = 1) => {
     setLoading(true);
+    setError(null);
     try {
       const res = await api.get(`/admin/medicines?page=${page}&limit=8`);
       setMedicines(res?.items || []);
@@ -37,7 +44,8 @@ export const ManageMedicines = () => {
         totalPages: res?.totalPages || 1
       });
     } catch (err) {
-      toast.error(err.message || 'Failed to fetch pharmacy catalog.');
+      setError(err.message || 'Could not retrieve catalog inventory.');
+      toast.error('Network Error: Failed to contact the server.');
     } finally {
       setLoading(false);
     }
@@ -47,8 +55,31 @@ export const ManageMedicines = () => {
     fetchMedicines(1);
   }, []);
 
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      errors.name = 'Medicine Name is required and must be at least 2 letters.';
+    }
+    if (!formData.dosage.trim()) {
+      errors.dosage = 'Dosage format is required (e.g. 500mg, 10ml).';
+    }
+    if (parseFloat(formData.price) < 0) {
+      errors.price = 'Unit price cannot be negative.';
+    }
+    if (parseInt(formData.stockQuantity, 10) < 0) {
+      errors.stockQuantity = 'Inventory stock quantity cannot be negative.';
+    }
+    if (!formData.description.trim() || formData.description.trim().length < 10) {
+      errors.description = 'Description must be at least 10 characters.';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const openAddModal = () => {
     setEditingMedicine(null);
+    setValidationErrors({});
     setFormData({
       name: '',
       description: '',
@@ -64,6 +95,7 @@ export const ManageMedicines = () => {
 
   const openEditModal = (med) => {
     setEditingMedicine(med);
+    setValidationErrors({});
     setFormData({
       name: med.name || '',
       description: med.description || '',
@@ -83,57 +115,73 @@ export const ManageMedicines = () => {
       ...prev, 
       [name]: type === 'checkbox' ? checked : value 
     }));
+    // Clear validation error
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({ ...prev, [name]: null }));
+    }
   };
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    
+    if (!validateForm()) {
+      toast.error('Please resolve the catalog warnings first.');
+      return;
+    }
+
+    setSubmitting(true);
     const payload = {
-      name: formData.name,
-      description: formData.description,
-      dosage: formData.dosage,
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      dosage: formData.dosage.trim(),
       category: formData.category,
       price: parseFloat(formData.price),
-      imageUrl: formData.imageUrl,
+      imageUrl: formData.imageUrl.trim(),
       stockQuantity: parseInt(formData.stockQuantity, 10),
       requiresPrescription: formData.requiresPrescription
     };
 
     try {
       if (editingMedicine) {
-        // Edit PUT /api/admin/medicines/:id
         await api.put(`/admin/medicines/${editingMedicine._id}`, payload);
         toast.success('Medicine catalog item updated.');
       } else {
-        // Add POST /api/admin/medicines
-        await api.post('/medicines', payload); // maps to POST /api/admin/medicines
+        await api.post('/medicines', payload);
         toast.success('New medicine catalog item added.');
       }
       setIsModalOpen(false);
       fetchMedicines(pagination.page);
     } catch (err) {
       toast.error(err.message || 'Operation failed.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleToggleActive = async (id, currentStatus) => {
+  const handleToggleActiveClick = (med) => {
+    if (med.isActive) {
+      setConfirmDeactivate(med);
+    } else {
+      executeToggleActive(med._id, false); // Activate immediately
+    }
+  };
+
+  const executeToggleActive = async (id, isActive) => {
     try {
-      if (currentStatus) {
-        // Soft delete sets isActive: false
+      if (isActive) {
         await api.delete(`/medicines/${id}`);
-        toast.success('Medicine catalog item deactivated.');
+        toast.success('Medicine catalogue item deactivated.');
       } else {
-        // Update sets isActive: true
         await api.put(`/medicines/${id}`, { isActive: true });
-        toast.success('Medicine catalog item activated.');
+        toast.success('Medicine catalogue item activated.');
       }
       fetchMedicines(pagination.page);
     } catch (err) {
       toast.error(err.message || 'Status toggle failed.');
+    } finally {
+      setConfirmDeactivate(null);
     }
   };
 
-  // Helper to render stock level badges
   const renderStockBadge = (qty) => {
     if (qty === 0) {
       return (
@@ -153,6 +201,28 @@ export const ManageMedicines = () => {
     }
     return <span className="text-text-body font-medium">{qty} units</span>;
   };
+
+  // Connection failure fallback banner
+  if (error) {
+    return (
+      <div className="bg-white p-12 text-center rounded-2xl border border-danger/25 shadow-sm max-w-lg mx-auto my-8 space-y-4">
+        <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center text-danger mx-auto">
+          <MdWarning size={32} />
+        </div>
+        <h3 className="font-heading font-bold text-text-heading text-lg">Connection Failure</h3>
+        <p className="text-text-muted text-sm leading-relaxed">
+          Could not connect to the clinical database server. Please check your network connection and verify if the service is running.
+        </p>
+        <button
+          onClick={() => { setError(null); fetchMedicines(1); }}
+          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer mx-auto"
+        >
+          <MdRefresh size={16} />
+          <span>Try Again</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -241,7 +311,7 @@ export const ManageMedicines = () => {
                             <MdEdit size={20} />
                           </button>
                           <button
-                            onClick={() => handleToggleActive(med._id, med.isActive)}
+                            onClick={() => handleToggleActiveClick(med)}
                             className={`p-1 rounded transition-colors cursor-pointer ${
                               med.isActive ? 'text-success hover:text-danger' : 'text-danger hover:text-success'
                             }`}
@@ -314,9 +384,14 @@ export const ManageMedicines = () => {
                     required
                     value={formData.name}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary"
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary ${
+                      validationErrors.name ? 'border-danger focus:border-danger' : 'border-border-color/30'
+                    }`}
                     placeholder="e.g. Paracetamol"
                   />
+                  {validationErrors.name && (
+                    <p className="text-[11px] text-danger font-semibold">{validationErrors.name}</p>
+                  )}
                 </div>
 
                 {/* Category */}
@@ -326,7 +401,7 @@ export const ManageMedicines = () => {
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary bg-white"
                   >
                     {categoriesList.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -345,9 +420,14 @@ export const ManageMedicines = () => {
                     required
                     value={formData.dosage}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary"
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary ${
+                      validationErrors.dosage ? 'border-danger focus:border-danger' : 'border-border-color/30'
+                    }`}
                     placeholder="e.g. 500mg Tablet"
                   />
+                  {validationErrors.dosage && (
+                    <p className="text-[11px] text-danger font-semibold">{validationErrors.dosage}</p>
+                  )}
                 </div>
 
                 {/* Price */}
@@ -361,8 +441,13 @@ export const ManageMedicines = () => {
                     min={0}
                     value={formData.price}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary"
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary ${
+                      validationErrors.price ? 'border-danger focus:border-danger' : 'border-border-color/30'
+                    }`}
                   />
+                  {validationErrors.price && (
+                    <p className="text-[11px] text-danger font-semibold">{validationErrors.price}</p>
+                  )}
                 </div>
 
                 {/* Stock Quantity */}
@@ -375,8 +460,13 @@ export const ManageMedicines = () => {
                     min={0}
                     value={formData.stockQuantity}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary"
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary ${
+                      validationErrors.stockQuantity ? 'border-danger focus:border-danger' : 'border-border-color/30'
+                    }`}
                   />
+                  {validationErrors.stockQuantity && (
+                    <p className="text-[11px] text-danger font-semibold">{validationErrors.stockQuantity}</p>
+                  )}
                 </div>
               </div>
 
@@ -401,9 +491,14 @@ export const ManageMedicines = () => {
                   rows={3}
                   value={formData.description}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 text-sm border border-border-color/30 rounded-lg focus:outline-none focus:border-primary resize-none"
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:border-primary resize-none ${
+                    validationErrors.description ? 'border-danger focus:border-danger' : 'border-border-color/30'
+                  }`}
                   placeholder="Relieves pain, reduces fever, typical usage details..."
                 />
+                {validationErrors.description && (
+                  <p className="text-[11px] text-danger font-semibold">{validationErrors.description}</p>
+                )}
               </div>
 
               {/* Requires Prescription Toggle */}
@@ -414,7 +509,7 @@ export const ManageMedicines = () => {
                   name="requiresPrescription"
                   checked={formData.requiresPrescription}
                   onChange={handleInputChange}
-                  className="w-4 h-4 text-primary border-border-color rounded focus:ring-primary focus:ring-opacity-50 cursor-pointer"
+                  className="w-4 h-4 text-primary border-border-color rounded focus:ring-primary focus:ring-opacity-50 cursor-pointer animate-none"
                 />
                 <label htmlFor="requiresPrescription" className="text-xs font-semibold text-text-heading cursor-pointer">
                   Requires prescription upload during patient checkout flow (Rx)
@@ -425,20 +520,56 @@ export const ManageMedicines = () => {
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-border-color/10">
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color transition-all cursor-pointer"
+                  className="px-4 py-2 border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color transition-all cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm disabled:opacity-75"
                 >
-                  {editingMedicine ? 'Save Changes' : 'Catalog Medicine'}
+                  {submitting ? 'Processing...' : editingMedicine ? 'Save Changes' : 'Catalog Medicine'}
                 </button>
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom absolute-overlay confirmation modal for Deactivations */}
+      {confirmDeactivate && (
+        <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-border-color/10 shadow-premium p-6 space-y-4 text-center">
+            <div className="w-14 h-14 bg-danger/10 text-danger rounded-full flex items-center justify-center mx-auto">
+              <MdWarning size={28} />
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="font-heading font-bold text-text-heading text-lg">Deactivate Catalog Item?</h3>
+              <p className="text-text-muted text-sm leading-relaxed">
+                Are you sure you want to deactivate <strong className="text-text-heading">{confirmDeactivate.name}</strong>? 
+                Deactivating this item hides it from the catalog store and prevents patients from purchasing it.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => setConfirmDeactivate(null)}
+                className="px-4.5 py-2 border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => executeToggleActive(confirmDeactivate._id, true)}
+                className="px-4.5 py-2 bg-danger hover:bg-red-600 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
+              >
+                Deactivate Item
+              </button>
+            </div>
           </div>
         </div>
       )}

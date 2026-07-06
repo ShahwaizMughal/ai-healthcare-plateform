@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MdBiotech } from 'react-icons/md';
+import { MdBiotech, MdWarning, MdRefresh } from 'react-icons/md';
 
 export const ManageLabBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
 
   const fetchBookings = async (page = 1) => {
     setLoading(true);
+    setError(null);
     try {
       const res = await api.get(`/admin/lab-bookings?page=${page}&limit=10`);
       setBookings(res?.items || []);
@@ -18,7 +21,8 @@ export const ManageLabBookings = () => {
         totalPages: res?.totalPages || 1
       });
     } catch (err) {
-      toast.error(err.message || 'Failed to fetch laboratory bookings.');
+      setError(err.message || 'Could not retrieve laboratory bookings.');
+      toast.error('Network Error: Failed to contact the server.');
     } finally {
       setLoading(false);
     }
@@ -29,13 +33,15 @@ export const ManageLabBookings = () => {
   }, []);
 
   const handleStatusChange = async (id, newStatus) => {
+    setUpdatingId(id);
     try {
-      // PATCH /api/admin/lab-bookings/:id/status
       await api.patch(`/admin/lab-bookings/${id}/status`, { status: newStatus });
       toast.success(`Lab booking status updated to ${newStatus}.`);
       fetchBookings(pagination.page);
     } catch (err) {
-      toast.error(err.message || 'Failed to transition booking status.');
+      toast.error(err.message || 'Failed to update lab booking status.');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -52,6 +58,28 @@ export const ManageLabBookings = () => {
         return 'bg-warning/15 text-warning';
     }
   };
+
+  // Connection failure fallback banner
+  if (error) {
+    return (
+      <div className="bg-white p-12 text-center rounded-2xl border border-danger/25 shadow-sm max-w-lg mx-auto my-8 space-y-4">
+        <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center text-danger mx-auto">
+          <MdWarning size={32} />
+        </div>
+        <h3 className="font-heading font-bold text-text-heading text-lg">Connection Failure</h3>
+        <p className="text-text-muted text-sm leading-relaxed">
+          Could not connect to the laboratory database server. Please check your network connection and verify if the service is running.
+        </p>
+        <button
+          onClick={() => { setError(null); fetchBookings(1); }}
+          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer mx-auto"
+        >
+          <MdRefresh size={16} />
+          <span>Try Again</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -119,8 +147,9 @@ export const ManageLabBookings = () => {
                       <td className="p-4">
                         <select
                           value={bk.status}
+                          disabled={updatingId === bk._id}
                           onChange={(e) => handleStatusChange(bk._id, e.target.value)}
-                          className={`px-2.5 py-1 text-xs font-semibold rounded-full border border-transparent focus:outline-none focus:border-border-color/30 cursor-pointer ${getStatusClass(bk.status)}`}
+                          className={`px-2.5 py-1 text-xs font-semibold rounded-full border border-transparent focus:outline-none focus:border-border-color/30 cursor-pointer disabled:opacity-50 ${getStatusClass(bk.status)}`}
                         >
                           <option value="pending" className="bg-white text-warning">Pending</option>
                           <option value="confirmed" className="bg-white text-success">Confirmed</option>
