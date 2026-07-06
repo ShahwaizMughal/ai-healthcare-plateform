@@ -19,11 +19,9 @@ import {
   MdEmail, 
   MdTrendingUp, 
   MdChevronRight, 
-  MdAdd,
-  MdShoppingCart
+  MdAdd
 } from 'react-icons/md';
 import api from '../../services/api';
-import toast from 'react-hot-toast';
 
 // Mock chart data for weekly clinics workflow
 const activityData = [
@@ -55,15 +53,14 @@ export const Dashboard = () => {
         const totalMsgs = msgRes?.totalItems || items.length || 1;
 
         // Try getting lab bookings if possible, or fall back to mock
-        let labCount = 1;
         try {
-          // Since M7 routes are mounted, let's fetch labbookings or fallback safely
+          // Since M7 routes are mounted, let's fetch lab bookings or fallback safely
           const labRes = await api.get('/lab-tests'); // public list
           if (labRes && labRes.totalItems) {
             // just to make it dynamic
           }
-        } catch (e) {
-          // silent fallback
+        } catch (error) {
+          console.error('Error fetching lab bookings:', error.message);
         }
 
         setStats({

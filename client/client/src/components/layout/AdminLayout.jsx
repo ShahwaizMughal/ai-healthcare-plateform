@@ -6,7 +6,7 @@ import useAuth from '../../hooks/useAuth';
 
 /**
  * AdminLayout Component
- * Master container structure wrapping nested subpages with sidebar and headers.
+ * Master container structure wrapping nested sub-pages with sidebar and headers.
  */
 export const AdminLayout = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -49,7 +49,7 @@ export const AdminLayout = () => {
       <div className="flex-1 flex flex-col lg:pl-[260px] min-w-0">
         
         {/* Top Header Bar */}
-        <header className="h-16 bg-white border-b border-border-color/20 flex items-center justify-between px-4 sm:px-6 md:px-8 shadow-sm flex-shrink-0">
+        <header className="h-16 bg-white border-b border-border-color/20 flex items-center justify-between px-4 sm:px-6 md:px-8 shadow-sm shrink-0">
           
           {/* Left: Mobile Menu & Current Path Title */}
           <div className="flex items-center gap-3">

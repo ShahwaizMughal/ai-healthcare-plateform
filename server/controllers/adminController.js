@@ -306,3 +306,182 @@ export const getContactMessages = async (req, res, next) => {
     next(err);
   }
 };
+
+// GET /api/admin/doctors — Fetch all doctors (paginated)
+export const getDoctors = async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
+
+    const [items, totalItems] = await Promise.all([
+      Doctor.find()
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Doctor.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items,
+        page,
+        limit,
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit) || 1
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/admin/medicines — Fetch all medicines (paginated)
+export const getMedicines = async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
+
+    const [items, totalItems] = await Promise.all([
+      Medicine.find()
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Medicine.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items,
+        page,
+        limit,
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit) || 1
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/admin/blogs — Fetch all blogs (paginated)
+export const getBlogs = async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
+
+    const [items, totalItems] = await Promise.all([
+      Blog.find()
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Blog.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items,
+        page,
+        limit,
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit) || 1
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/admin/appointments — Fetch all appointments (paginated, populated with doctor and user info)
+export const getAppointments = async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
+
+    const [items, totalItems] = await Promise.all([
+      Appointment.find()
+        .populate('doctorId', 'fullName specialization')
+        .populate('userId', 'fullName email phone')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Appointment.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items,
+        page,
+        limit,
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit) || 1
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/admin/orders — Fetch all orders (paginated)
+export const getOrders = async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
+
+    const [items, totalItems] = await Promise.all([
+      Order.find()
+        .populate('userId', 'fullName email phone')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Order.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items,
+        page,
+        limit,
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit) || 1
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/admin/lab-bookings — Fetch all lab bookings (paginated, populated with lab test and user info)
+export const getLabBookings = async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
+
+    const [items, totalItems] = await Promise.all([
+      LabBooking.find()
+        .populate('labTestId', 'name category price')
+        .populate('userId', 'fullName email phone')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      LabBooking.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items,
+        page,
+        limit,
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit) || 1
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};

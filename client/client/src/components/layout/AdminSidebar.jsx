@@ -89,7 +89,7 @@ export const AdminSidebar = ({ isMobileOpen, onClose }) => {
                   }
                 `}
               >
-                <span className="flex-shrink-0">{item.icon}</span>
+                <span className="shrink-0">{item.icon}</span>
                 <span>{item.name}</span>
               </NavLink>
             ))}
