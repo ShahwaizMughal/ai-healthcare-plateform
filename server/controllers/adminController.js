@@ -284,12 +284,19 @@ export const getContactMessages = async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
 
+    const filter = {};
+    if (req.query.status === 'unread') {
+      filter.isRead = false;
+    } else if (req.query.status === 'read') {
+      filter.isRead = true;
+    }
+
     const [items, totalItems] = await Promise.all([
-      ContactMessage.find()
+      ContactMessage.find(filter)
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
-      ContactMessage.countDocuments(),
+      ContactMessage.countDocuments(filter),
     ]);
 
     res.status(200).json({
@@ -302,6 +309,22 @@ export const getContactMessages = async (req, res, next) => {
         totalPages: Math.ceil(totalItems / limit) || 1
       }
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// PATCH /api/admin/messages/:id/read — Mark contact message as read
+export const markMessageRead = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const message = await ContactMessage.findByIdAndUpdate(id, { isRead: true }, { new: true });
+
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found.' });
+    }
+
+    res.status(200).json({ success: true, data: { message } });
   } catch (err) {
     next(err);
   }

@@ -21,6 +21,7 @@ import {
   updateLabBookingStatus,
   getLabBookings,
   getContactMessages,
+  markMessageRead,
 } from '../controllers/adminController.js';
 
 const router = express.Router();
@@ -58,5 +59,6 @@ router.patch('/lab-bookings/:id/status', updateLabBookingStatus);
 
 // Customer Inquiries Inbox
 router.get('/messages', getContactMessages);
+router.patch('/messages/:id/read', markMessageRead);
 
 export default router;
