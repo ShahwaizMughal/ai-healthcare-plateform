@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { MdClose, MdShoppingCart, MdVisibility, MdWarning, MdRefresh } from 'react-icons/md';
@@ -14,7 +14,7 @@ export const ManageOrder = () => {
   // Custom confirmation overlays for critical status transitions (cancelled / delivered)
   const [pendingStatusChange, setPendingStatusChange] = useState(null); // { id, status }
 
-  const fetchOrders = async (page = 1) => {
+  const fetchOrders = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
@@ -30,14 +30,14 @@ export const ManageOrder = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchOrders(1);
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fetchOrders]);
 
   const handleStatusChangeClick = (id, newStatus) => {
     if (newStatus === 'cancelled' || newStatus === 'delivered') {

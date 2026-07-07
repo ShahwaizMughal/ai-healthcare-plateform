@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { MdCheck, MdEmail, MdWarning, MdRefresh } from 'react-icons/md';
@@ -11,7 +11,7 @@ export const ContactMessages = () => {
   const [error, setError] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
 
-  const fetchMessages = async (page = 1) => {
+  const fetchMessages = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
@@ -27,14 +27,14 @@ export const ContactMessages = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchMessages(1);
     }, 0);
     return () => clearTimeout(timer);
-  }, [filter]);
+  }, [fetchMessages]);
 
   const handleMarkAsRead = async (id) => {
     setTogglingId(id);
@@ -103,7 +103,7 @@ export const ContactMessages = () => {
           Loading messages...
         </div>
       ) : messages.length === 0 ? (
-        <div className="bg-white p-16 text-center rounded-2xl border border-border-color/15 shadow-sm border-2 border-dashed border-border-color/10">
+        <div className="bg-white p-16 text-center rounded-2xl shadow-sm border-2 border-dashed border-border-color/10">
           <MdEmail size={48} className="mx-auto text-border-color mb-3" />
           <h3 className="font-bold text-text-heading">Inbox is Empty</h3>
           <p className="text-text-muted text-sm mt-1">No customer inquiries match this filter.</p>
@@ -115,7 +115,7 @@ export const ContactMessages = () => {
               <div 
                 key={msg._id} 
                 className={`p-6 rounded-2xl border bg-white transition-all duration-200 shadow-sm hover:shadow-md flex flex-col md:flex-row md:items-start justify-between gap-4 ${
-                  !msg.isRead ? 'border-primary/20 bg-primary/[0.01]' : 'border-border-color/15'
+                  !msg.isRead ? 'border-primary/20 bg-primary/1' : 'border-border-color/15'
                 }`}
               >
                 <div className="space-y-2.5">
@@ -139,7 +139,7 @@ export const ContactMessages = () => {
                   </p>
                 </div>
 
-                <div className="flex-shrink-0 flex items-center gap-2 self-end md:self-start">
+                <div className="shrink-0 flex items-center gap-2 self-end md:self-start">
                   {!msg.isRead ? (
                     <button
                       onClick={() => handleMarkAsRead(msg._id)}

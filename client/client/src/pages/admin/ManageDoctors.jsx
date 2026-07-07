@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdClose, MdWarning, MdRefresh } from 'react-icons/md';
@@ -34,7 +34,7 @@ export const ManageDoctors = () => {
     'Gynecology', 'Orthopedics', 'General Medicine', 'Psychiatry'
   ];
 
-  const fetchDoctors = async (page = 1) => {
+  const fetchDoctors = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
@@ -50,14 +50,14 @@ export const ManageDoctors = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchDoctors(1);
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fetchDoctors]);
 
   const validateForm = () => {
     const errors = {};

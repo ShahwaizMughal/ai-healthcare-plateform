@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { MdBiotech, MdWarning, MdRefresh } from 'react-icons/md';
@@ -10,7 +10,7 @@ export const ManageLabBookings = () => {
   const [error, setError] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const fetchBookings = async (page = 1) => {
+  const fetchBookings = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
@@ -26,14 +26,14 @@ export const ManageLabBookings = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchBookings(1);
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fetchBookings]);
 
   const handleStatusChange = async (id, newStatus) => {
     setUpdatingId(id);

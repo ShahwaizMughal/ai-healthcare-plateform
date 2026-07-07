@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdClose, MdWarning, MdRefresh } from 'react-icons/md';
@@ -33,7 +33,7 @@ export const ManageMedicines = () => {
     'Antihistamines', 'Vitamins & Supplements', 'Diabetes', 'Other'
   ];
 
-  const fetchMedicines = async (page = 1) => {
+  const fetchMedicines = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
@@ -49,14 +49,14 @@ export const ManageMedicines = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchMedicines(1);
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fetchMedicines]);
 
   const validateForm = () => {
     const errors = {};

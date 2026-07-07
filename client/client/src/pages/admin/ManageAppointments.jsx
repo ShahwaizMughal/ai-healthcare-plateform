@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { MdClose, MdEvent, MdVisibility, MdWarning, MdRefresh } from 'react-icons/md';
@@ -11,7 +11,7 @@ export const ManageAppointments = () => {
   const [viewingAppointment, setViewingAppointment] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const fetchAppointments = async (page = 1) => {
+  const fetchAppointments = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
@@ -27,14 +27,14 @@ export const ManageAppointments = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchAppointments(1);
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fetchAppointments]);
 
   const handleStatusChange = async (id, newStatus) => {
     setUpdatingId(id);

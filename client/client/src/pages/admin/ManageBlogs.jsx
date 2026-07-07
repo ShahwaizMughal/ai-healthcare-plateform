@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdClose, MdWarning, MdBook, MdRefresh } from 'react-icons/md';
@@ -33,7 +33,7 @@ export const ManageBlogs = () => {
     'Medical Innovation', 'Family Health', 'Other'
   ];
 
-  const fetchBlogs = async (page = 1) => {
+  const fetchBlogs = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
@@ -49,14 +49,14 @@ export const ManageBlogs = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchBlogs(1);
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fetchBlogs]);
 
   const generateSlug = (text) => {
     return text
