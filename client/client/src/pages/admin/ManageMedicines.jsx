@@ -1,13 +1,45 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdClose, MdWarning, MdRefresh } from 'react-icons/md';
+import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdWarning } from 'react-icons/md';
+import ErrorState from '../../components/common/ErrorState';
+import EmptyState from '../../components/common/EmptyState';
+import Pagination from '../../components/common/Pagination';
+import Loader from '../../components/common/Loader';
+import Modal from '../../components/common/Modal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import useAdminFetch from '../../hooks/useAdminFetch';
+import useForm from '../../hooks/useForm';
+
+const validateMedicine = (values) => {
+  const errors = {};
+  if (!values.name.trim() || values.name.trim().length < 2) {
+    errors.name = 'Medicine Name is required and must be at least 2 letters.';
+  }
+  if (!values.dosage.trim()) {
+    errors.dosage = 'Dosage format is required (e.g. 500mg, 10ml).';
+  }
+  if (parseFloat(values.price) < 0) {
+    errors.price = 'Unit price cannot be negative.';
+  }
+  if (parseInt(values.stockQuantity, 10) < 0) {
+    errors.stockQuantity = 'Inventory stock quantity cannot be negative.';
+  }
+  if (!values.description.trim() || values.description.trim().length < 10) {
+    errors.description = 'Description must be at least 10 characters.';
+  }
+  return errors;
+};
 
 export const ManageMedicines = () => {
-  const [medicines, setMedicines] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    items: medicines,
+    pagination,
+    loading,
+    error,
+    setError,
+    fetchData: fetchMedicines,
+  } = useAdminFetch('/admin/medicines', 8, 'Could not retrieve catalog inventory.');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -15,8 +47,7 @@ export const ManageMedicines = () => {
   // Custom Deactivation modal overlays
   const [confirmDeactivate, setConfirmDeactivate] = useState(null);
 
-  // Form Fields & Validation errors
-  const [formData, setFormData] = useState({
+  const initialFormValues = {
     name: '',
     description: '',
     dosage: '',
@@ -25,81 +56,34 @@ export const ManageMedicines = () => {
     imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200',
     stockQuantity: 100,
     requiresPrescription: false
-  });
-  const [validationErrors, setValidationErrors] = useState({});
+  };
+
+  const {
+    formData,
+    validationErrors,
+    handleInputChange,
+    resetForm,
+    validateForm
+  } = useForm(initialFormValues, validateMedicine);
 
   const categoriesList = [
     'Analgesics', 'Antibiotics', 'Antiviral', 'Cardiovascular', 
     'Antihistamines', 'Vitamins & Supplements', 'Diabetes', 'Other'
   ];
 
-  const fetchMedicines = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get(`/admin/medicines?page=${page}&limit=8`);
-      setMedicines(res?.items || []);
-      setPagination({
-        page: res?.page || page,
-        totalPages: res?.totalPages || 1
-      });
-    } catch (err) {
-      setError(err.message || 'Could not retrieve catalog inventory.');
-      toast.error('Network Error: Failed to contact the server.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchMedicines(1);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [fetchMedicines]);
 
-  const validateForm = () => {
-    const errors = {};
-    if (!formData.name.trim() || formData.name.trim().length < 2) {
-      errors.name = 'Medicine Name is required and must be at least 2 letters.';
-    }
-    if (!formData.dosage.trim()) {
-      errors.dosage = 'Dosage format is required (e.g. 500mg, 10ml).';
-    }
-    if (parseFloat(formData.price) < 0) {
-      errors.price = 'Unit price cannot be negative.';
-    }
-    if (parseInt(formData.stockQuantity, 10) < 0) {
-      errors.stockQuantity = 'Inventory stock quantity cannot be negative.';
-    }
-    if (!formData.description.trim() || formData.description.trim().length < 10) {
-      errors.description = 'Description must be at least 10 characters.';
-    }
 
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
 
   const openAddModal = () => {
     setEditingMedicine(null);
-    setValidationErrors({});
-    setFormData({
-      name: '',
-      description: '',
-      dosage: '',
-      category: 'Analgesics',
-      price: 10,
-      imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?q=80&w=200',
-      stockQuantity: 100,
-      requiresPrescription: false
-    });
+    resetForm();
     setIsModalOpen(true);
   };
 
   const openEditModal = (med) => {
     setEditingMedicine(med);
-    setValidationErrors({});
-    setFormData({
+    resetForm({
       name: med.name || '',
       description: med.description || '',
       dosage: med.dosage || '',
@@ -110,18 +94,6 @@ export const ManageMedicines = () => {
       requiresPrescription: med.requiresPrescription || false
     });
     setIsModalOpen(true);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
-    }));
-    // Clear validation error
-    if (validationErrors[name]) {
-      setValidationErrors(prev => ({ ...prev, [name]: null }));
-    }
   };
 
   const handleFormSubmit = async (e) => {
@@ -208,22 +180,12 @@ export const ManageMedicines = () => {
   // Connection failure fallback banner
   if (error) {
     return (
-      <div className="bg-white p-12 text-center rounded-2xl border border-danger/25 shadow-sm max-w-lg mx-auto my-8 space-y-4">
-        <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center text-danger mx-auto">
-          <MdWarning size={32} />
-        </div>
-        <h3 className="font-heading font-bold text-text-heading text-lg">Connection Failure</h3>
-        <p className="text-text-muted text-sm leading-relaxed">
-          Could not connect to the clinical database server. Please check your network connection and verify if the service is running.
-        </p>
-        <button
-          onClick={() => { setError(null); fetchMedicines(1); }}
-          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer mx-auto"
-        >
-          <MdRefresh size={16} />
-          <span>Try Again</span>
-        </button>
-      </div>
+      <ErrorState
+        onRetry={() => {
+          setError(null);
+          fetchMedicines(1);
+        }}
+      />
     );
   }
 
@@ -247,14 +209,12 @@ export const ManageMedicines = () => {
 
       {/* Main Table Canvas */}
       {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-border-color/15 shadow-sm text-text-muted">
-          Loading catalog...
-        </div>
+        <Loader />
       ) : medicines.length === 0 ? (
-        <div className="bg-white p-16 text-center rounded-2xl border border-border-color/15 shadow-sm border-2 border-dashed border-border-color/10">
-          <h3 className="font-bold text-text-heading">No Medicines Found</h3>
-          <p className="text-text-muted text-sm mt-1">Click the button above to seed the pharmacy store catalog.</p>
-        </div>
+        <EmptyState
+          title="No Medicines Found"
+          description="Click the button above to seed the pharmacy store catalog."
+        />
       ) : (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-border-color/15 shadow-sm overflow-hidden">
@@ -332,50 +292,23 @@ export const ManageMedicines = () => {
           </div>
 
           {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <button
-                disabled={pagination.page === 1}
-                onClick={() => fetchMedicines(pagination.page - 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Previous
-              </button>
-              <span className="text-xs text-text-muted font-medium">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <button
-                disabled={pagination.page === pagination.totalPages}
-                onClick={() => fetchMedicines(pagination.page + 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={fetchMedicines}
+          />
         </div>
       )}
 
       {/* Catalog Entry Form Modal Overlay */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-xl w-full border border-border-color/10 shadow-premium flex flex-col max-h-[90vh]">
-            
-            {/* Modal Header */}
-            <div className="p-5 border-b border-border-color/10 flex items-center justify-between">
-              <h3 className="font-heading font-bold text-text-heading text-lg">
-                {editingMedicine ? 'Edit Catalog Entry' : 'Add Catalog Medicine'}
-              </h3>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-full text-text-muted hover:bg-bg-color hover:text-text-heading cursor-pointer"
-              >
-                <MdClose size={22} />
-              </button>
-            </div>
-
-            {/* Modal Form Scrollable Canvas */}
-            <form onSubmit={handleFormSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingMedicine ? 'Edit Catalog Entry' : 'Add Catalog Medicine'}
+        maxWidth="max-w-xl"
+      >
+        {/* Modal Form Scrollable Canvas */}
+        <form onSubmit={handleFormSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Name */}
@@ -538,44 +471,23 @@ export const ManageMedicines = () => {
                 </button>
               </div>
 
-            </form>
-          </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
       {/* Custom absolute-overlay confirmation modal for Deactivations */}
-      {confirmDeactivate && (
-        <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-border-color/10 shadow-premium p-6 space-y-4 text-center">
-            <div className="w-14 h-14 bg-danger/10 text-danger rounded-full flex items-center justify-center mx-auto">
-              <MdWarning size={28} />
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="font-heading font-bold text-text-heading text-lg">Deactivate Catalog Item?</h3>
-              <p className="text-text-muted text-sm leading-relaxed">
-                Are you sure you want to deactivate <strong className="text-text-heading">{confirmDeactivate.name}</strong>? 
-                Deactivating this item hides it from the catalog store and prevents patients from purchasing it.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <button
-                onClick={() => setConfirmDeactivate(null)}
-                className="px-4.5 py-2 border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => executeToggleActive(confirmDeactivate._id, true)}
-                className="px-4.5 py-2 bg-danger hover:bg-red-600 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
-              >
-                Deactivate Item
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!confirmDeactivate}
+        onClose={() => setConfirmDeactivate(null)}
+        onConfirm={() => executeToggleActive(confirmDeactivate._id, true)}
+        title="Deactivate Catalog Item?"
+        description={
+          <>
+            Are you sure you want to deactivate <strong className="text-text-heading">{confirmDeactivate?.name}</strong>? 
+            Deactivating this item hides it from the catalog store and prevents patients from purchasing it.
+          </>
+        }
+        confirmText="Deactivate Item"
+      />
 
     </div>
   );

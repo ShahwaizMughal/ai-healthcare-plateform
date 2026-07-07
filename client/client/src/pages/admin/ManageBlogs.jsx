@@ -1,13 +1,43 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdClose, MdWarning, MdBook, MdRefresh } from 'react-icons/md';
+import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdBook } from 'react-icons/md';
+import ErrorState from '../../components/common/ErrorState';
+import EmptyState from '../../components/common/EmptyState';
+import Pagination from '../../components/common/Pagination';
+import Loader from '../../components/common/Loader';
+import Modal from '../../components/common/Modal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import useAdminFetch from '../../hooks/useAdminFetch';
+import useForm from '../../hooks/useForm';
+import { generateSlug } from '../../utils/helpers';
+
+const validateBlog = (values) => {
+  const errors = {};
+  if (!values.title.trim() || values.title.trim().length < 10) {
+    errors.title = 'Title must be at least 10 characters long.';
+  }
+  if (!values.author.trim()) {
+    errors.author = 'Author name is required.';
+  }
+  if (!values.summary.trim() || values.summary.trim().length < 15) {
+    errors.summary = 'Summary excerpt must be at least 15 characters long.';
+  }
+  if (!values.content.trim() || values.content.trim().length < 50) {
+    errors.content = 'Article content must be at least 50 characters long.';
+  }
+  return errors;
+};
 
 export const ManageBlogs = () => {
-  const [blogs, setBlogs] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    items: blogs,
+    pagination,
+    loading,
+    error,
+    setError,
+    fetchData: fetchBlogs,
+  } = useAdminFetch('/admin/blogs', 8, 'Could not retrieve publication articles.');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBlog, setEditingBlog] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -15,8 +45,7 @@ export const ManageBlogs = () => {
   // Custom Deactivation confirmation overlays
   const [confirmDeactivate, setConfirmDeactivate] = useState(null);
 
-  // Form Fields & Validation errors
-  const [formData, setFormData] = useState({
+  const initialFormValues = {
     title: '',
     slug: '',
     category: 'Nutrition',
@@ -25,47 +54,24 @@ export const ManageBlogs = () => {
     summary: '',
     content: '',
     status: 'draft'
-  });
-  const [validationErrors, setValidationErrors] = useState({});
+  };
+
+  const {
+    formData,
+    setFormData,
+    validationErrors,
+    setValidationErrors,
+    handleInputChange,
+    resetForm,
+    validateForm
+  } = useForm(initialFormValues, validateBlog);
 
   const categoriesList = [
     'Nutrition', 'Fitness', 'Mental Health', 'Preventative Care', 
     'Medical Innovation', 'Family Health', 'Other'
   ];
 
-  const fetchBlogs = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get(`/admin/blogs?page=${page}&limit=8`);
-      setBlogs(res?.items || []);
-      setPagination({
-        page: res?.page || page,
-        totalPages: res?.totalPages || 1
-      });
-    } catch (err) {
-      setError(err.message || 'Could not retrieve publication articles.');
-      toast.error('Network Error: Failed to contact the server.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchBlogs(1);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [fetchBlogs]);
-
-  const generateSlug = (text) => {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/[\s_]+/g, '-')
-      .replace(/-+/g, '-');
-  };
 
   const handleTitleChange = (e) => {
     const titleVal = e.target.value;
@@ -79,53 +85,17 @@ export const ManageBlogs = () => {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (validationErrors[name]) {
-      setValidationErrors(prev => ({ ...prev, [name]: null }));
-    }
-  };
 
-  const validateForm = () => {
-    const errors = {};
-    if (!formData.title.trim() || formData.title.trim().length < 10) {
-      errors.title = 'Title must be at least 10 characters long.';
-    }
-    if (!formData.author.trim()) {
-      errors.author = 'Author name is required.';
-    }
-    if (!formData.summary.trim() || formData.summary.trim().length < 15) {
-      errors.summary = 'Summary excerpt must be at least 15 characters long.';
-    }
-    if (!formData.content.trim() || formData.content.trim().length < 50) {
-      errors.content = 'Article content must be at least 50 characters long.';
-    }
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
 
   const openAddModal = () => {
     setEditingBlog(null);
-    setValidationErrors({});
-    setFormData({
-      title: '',
-      slug: '',
-      category: 'Nutrition',
-      author: 'Chief Medical Editor',
-      coverImageUrl: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?q=80&w=300',
-      summary: '',
-      content: '',
-      status: 'draft'
-    });
+    resetForm();
     setIsModalOpen(true);
   };
 
   const openEditModal = (blog) => {
     setEditingBlog(blog);
-    setValidationErrors({});
-    setFormData({
+    resetForm({
       title: blog.title || '',
       slug: blog.slug || '',
       category: blog.category || 'Nutrition',
@@ -202,22 +172,12 @@ export const ManageBlogs = () => {
   // Connection failure fallback banner
   if (error) {
     return (
-      <div className="bg-white p-12 text-center rounded-2xl border border-danger/25 shadow-sm max-w-lg mx-auto my-8 space-y-4">
-        <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center text-danger mx-auto">
-          <MdWarning size={32} />
-        </div>
-        <h3 className="font-heading font-bold text-text-heading text-lg">Connection Failure</h3>
-        <p className="text-text-muted text-sm leading-relaxed">
-          Could not connect to the clinical database server. Please check your network connection and verify if the service is running.
-        </p>
-        <button
-          onClick={() => { setError(null); fetchBlogs(1); }}
-          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer mx-auto"
-        >
-          <MdRefresh size={16} />
-          <span>Try Again</span>
-        </button>
-      </div>
+      <ErrorState
+        onRetry={() => {
+          setError(null);
+          fetchBlogs(1);
+        }}
+      />
     );
   }
 
@@ -241,15 +201,13 @@ export const ManageBlogs = () => {
 
       {/* Main Table Canvas */}
       {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-border-color/15 shadow-sm text-text-muted">
-          Loading publications...
-        </div>
+        <Loader />
       ) : blogs.length === 0 ? (
-        <div className="bg-white p-16 text-center rounded-2xl border border-border-color/15 shadow-sm border-2 border-dashed border-border-color/10">
-          <MdBook size={48} className="mx-auto text-border-color mb-3" />
-          <h3 className="font-bold text-text-heading">No Publications Found</h3>
-          <p className="text-text-muted text-sm mt-1">Click the button above to publish your first medical health blog post.</p>
-        </div>
+        <EmptyState
+          Icon={MdBook}
+          title="No Publications Found"
+          description="Click the button above to publish your first medical health blog post."
+        />
       ) : (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-border-color/15 shadow-sm overflow-hidden">
@@ -272,7 +230,7 @@ export const ManageBlogs = () => {
                         <img 
                           src={blog.coverImageUrl || 'https://via.placeholder.com/60x40'} 
                           alt={blog.title} 
-                          className="w-14 h-9 rounded object-cover border border-border-color/20 flex-shrink-0"
+                          className="w-14 h-9 rounded object-cover border border-border-color/20 shrink-0"
                         />
                         <div>
                           <p className="font-semibold text-text-heading line-clamp-1">{blog.title}</p>
@@ -323,50 +281,23 @@ export const ManageBlogs = () => {
           </div>
 
           {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <button
-                disabled={pagination.page === 1}
-                onClick={() => fetchBlogs(pagination.page - 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Previous
-              </button>
-              <span className="text-xs text-text-muted font-medium">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <button
-                disabled={pagination.page === pagination.totalPages}
-                onClick={() => fetchBlogs(pagination.page + 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={fetchBlogs}
+          />
         </div>
       )}
 
       {/* Editor Modal Overlay */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-2xl w-full border border-border-color/10 shadow-premium flex flex-col max-h-[90vh]">
-            
-            {/* Modal Header */}
-            <div className="p-5 border-b border-border-color/10 flex items-center justify-between">
-              <h3 className="font-heading font-bold text-text-heading text-lg">
-                {editingBlog ? 'Edit Blog Publication' : 'Create New Blog Post'}
-              </h3>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-full text-text-muted hover:bg-bg-color hover:text-text-heading cursor-pointer"
-              >
-                <MdClose size={22} />
-              </button>
-            </div>
-
-            {/* Modal Form Scrollable Canvas */}
-            <form onSubmit={handleFormSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingBlog ? 'Edit Blog Publication' : 'Create New Blog Post'}
+        maxWidth="max-w-2xl"
+      >
+        {/* Modal Form Scrollable Canvas */}
+        <form onSubmit={handleFormSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
               
               {/* Title */}
               <div className="space-y-1">
@@ -520,44 +451,23 @@ export const ManageBlogs = () => {
                 </button>
               </div>
 
-            </form>
-          </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
       {/* Custom absolute-overlay confirmation modal for Deactivations */}
-      {confirmDeactivate && (
-        <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-border-color/10 shadow-premium p-6 space-y-4 text-center">
-            <div className="w-14 h-14 bg-danger/10 text-danger rounded-full flex items-center justify-center mx-auto">
-              <MdWarning size={28} />
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="font-heading font-bold text-text-heading text-lg">Revert Article to Draft?</h3>
-              <p className="text-text-muted text-sm leading-relaxed">
-                Are you sure you want to revert <strong className="text-text-heading">"{confirmDeactivate.title}"</strong> to draft? 
-                This will unpublish the article and hide it from the patient blog feed index.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <button
-                onClick={() => setConfirmDeactivate(null)}
-                className="px-4.5 py-2 border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => executeToggleStatus(confirmDeactivate._id, 'published')}
-                className="px-4.5 py-2 bg-danger hover:bg-red-600 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
-              >
-                Revert to Draft
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!confirmDeactivate}
+        onClose={() => setConfirmDeactivate(null)}
+        onConfirm={() => executeToggleStatus(confirmDeactivate._id, 'published')}
+        title="Revert Article to Draft?"
+        description={
+          <>
+            Are you sure you want to revert <strong className="text-text-heading">"{confirmDeactivate?.title}"</strong> to draft? 
+            This will unpublish the article and hide it from the patient blog feed index.
+          </>
+        }
+        confirmText="Revert to Draft"
+      />
 
     </div>
   );

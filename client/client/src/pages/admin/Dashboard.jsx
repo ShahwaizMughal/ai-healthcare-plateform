@@ -270,7 +270,7 @@ export const Dashboard = () => {
                     "{msg.message}"
                   </p>
                 </div>
-                <div className="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0">
+                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                   <span className="text-[10px] text-text-muted">
                     {new Date(msg.createdAt).toLocaleDateString(undefined, { 
                       month: 'short', 

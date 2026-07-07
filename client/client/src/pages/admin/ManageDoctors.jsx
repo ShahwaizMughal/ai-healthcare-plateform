@@ -1,13 +1,48 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MdAdd, MdEdit, MdToggleOn, MdToggleOff, MdClose, MdWarning, MdRefresh } from 'react-icons/md';
+import { MdAdd, MdEdit, MdToggleOn, MdToggleOff } from 'react-icons/md';
+import ErrorState from '../../components/common/ErrorState';
+import EmptyState from '../../components/common/EmptyState';
+import Pagination from '../../components/common/Pagination';
+import Loader from '../../components/common/Loader';
+import Modal from '../../components/common/Modal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import useAdminFetch from '../../hooks/useAdminFetch';
+import useForm from '../../hooks/useForm';
+
+const validateDoctor = (values) => {
+  const errors = {};
+  if (!values.fullName.trim() || values.fullName.trim().length < 3) {
+    errors.fullName = 'Full Name must be at least 3 characters long.';
+  }
+  if (!values.qualification.trim()) {
+    errors.qualification = 'Qualifications are required.';
+  }
+  if (parseInt(values.experienceYears, 10) < 0) {
+    errors.experienceYears = 'Experience cannot be negative.';
+  }
+  if (parseFloat(values.consultationFee) <= 0) {
+    errors.consultationFee = 'Consultation fee must be greater than $0.';
+  }
+  if (!values.bio.trim() || values.bio.trim().length < 20) {
+    errors.bio = 'Biography must be at least 20 characters long.';
+  }
+  if (!values.availabilityHours.trim()) {
+    errors.availabilityHours = 'Availability hours are required.';
+  }
+  return errors;
+};
 
 export const ManageDoctors = () => {
-  const [doctors, setDoctors] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    items: doctors,
+    pagination,
+    loading,
+    error,
+    setError,
+    fetchData: fetchDoctors,
+  } = useAdminFetch('/admin/doctors', 8, 'Could not retrieve doctor profiles.');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -15,8 +50,7 @@ export const ManageDoctors = () => {
   // Custom Confirmation Dialog Overlay State
   const [confirmDeactivate, setConfirmDeactivate] = useState(null);
 
-  // Form Fields & Validation errors
-  const [formData, setFormData] = useState({
+  const initialFormValues = {
     fullName: '',
     specialization: 'Cardiology',
     qualification: '',
@@ -26,86 +60,35 @@ export const ManageDoctors = () => {
     consultationFee: 100,
     availabilityDay: 'Monday',
     availabilityHours: '09:00 AM - 01:00 PM'
-  });
-  const [validationErrors, setValidationErrors] = useState({});
+  };
+
+  const {
+    formData,
+    validationErrors,
+    handleInputChange,
+    resetForm,
+    validateForm
+  } = useForm(initialFormValues, validateDoctor);
 
   const specializationsList = [
     'Cardiology', 'Dermatology', 'Neurology', 'Pediatrics', 
     'Gynecology', 'Orthopedics', 'General Medicine', 'Psychiatry'
   ];
 
-  const fetchDoctors = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get(`/admin/doctors?page=${page}&limit=8`);
-      setDoctors(res?.items || []);
-      setPagination({
-        page: res?.page || page,
-        totalPages: res?.totalPages || 1
-      });
-    } catch (err) {
-      setError(err.message || 'Could not retrieve doctor profiles.');
-      toast.error('Network Error: Failed to contact the server.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchDoctors(1);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [fetchDoctors]);
 
-  const validateForm = () => {
-    const errors = {};
-    if (!formData.fullName.trim() || formData.fullName.trim().length < 3) {
-      errors.fullName = 'Full Name must be at least 3 characters long.';
-    }
-    if (!formData.qualification.trim()) {
-      errors.qualification = 'Qualifications are required.';
-    }
-    if (parseInt(formData.experienceYears, 10) < 0) {
-      errors.experienceYears = 'Experience cannot be negative.';
-    }
-    if (parseFloat(formData.consultationFee) <= 0) {
-      errors.consultationFee = 'Consultation fee must be greater than $0.';
-    }
-    if (!formData.bio.trim() || formData.bio.trim().length < 20) {
-      errors.bio = 'Biography must be at least 20 characters long.';
-    }
-    if (!formData.availabilityHours.trim()) {
-      errors.availabilityHours = 'Availability hours are required.';
-    }
-    
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+
 
   const openAddModal = () => {
     setEditingDoctor(null);
-    setValidationErrors({});
-    setFormData({
-      fullName: '',
-      specialization: 'Cardiology',
-      qualification: '',
-      experienceYears: 5,
-      profileImageUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=200',
-      bio: '',
-      consultationFee: 100,
-      availabilityDay: 'Monday',
-      availabilityHours: '09:00 AM - 01:00 PM'
-    });
+    resetForm();
     setIsModalOpen(true);
   };
 
   const openEditModal = (doc) => {
     setEditingDoctor(doc);
-    setValidationErrors({});
     const firstAvailability = doc.availability?.[0] || { day: 'Monday', hours: '09:00 AM - 01:00 PM' };
-    setFormData({
+    resetForm({
       fullName: doc.fullName || '',
       specialization: doc.specialization || 'Cardiology',
       qualification: doc.qualification || '',
@@ -117,15 +100,6 @@ export const ManageDoctors = () => {
       availabilityHours: firstAvailability.hours
     });
     setIsModalOpen(true);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear validation error when editing field
-    if (validationErrors[name]) {
-      setValidationErrors(prev => ({ ...prev, [name]: null }));
-    }
   };
 
   const handleFormSubmit = async (e) => {
@@ -199,22 +173,12 @@ export const ManageDoctors = () => {
   // Connection failure fallback banner
   if (error) {
     return (
-      <div className="bg-white p-12 text-center rounded-2xl border border-danger/25 shadow-sm max-w-lg mx-auto my-8 space-y-4">
-        <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center text-danger mx-auto">
-          <MdWarning size={32} />
-        </div>
-        <h3 className="font-heading font-bold text-text-heading text-lg">Connection Failure</h3>
-        <p className="text-text-muted text-sm leading-relaxed">
-          Could not connect to the clinical database server. Please check your network connection and verify if the service is running.
-        </p>
-        <button
-          onClick={() => { setError(null); fetchDoctors(1); }}
-          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer mx-auto"
-        >
-          <MdRefresh size={16} />
-          <span>Try Again</span>
-        </button>
-      </div>
+      <ErrorState
+        onRetry={() => {
+          setError(null);
+          fetchDoctors(1);
+        }}
+      />
     );
   }
 
@@ -238,14 +202,12 @@ export const ManageDoctors = () => {
 
       {/* Main Table Canvas */}
       {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-border-color/15 shadow-sm text-text-muted">
-          Loading providers...
-        </div>
+        <Loader />
       ) : doctors.length === 0 ? (
-        <div className="bg-white p-16 text-center rounded-2xl border border-border-color/15 shadow-sm border-2 border-dashed border-border-color/10">
-          <h3 className="font-bold text-text-heading">No Doctor Profiles Found</h3>
-          <p className="text-text-muted text-sm mt-1">Click the button above to add the clinic's first provider profile.</p>
-        </div>
+        <EmptyState
+          title="No Doctor Profiles Found"
+          description="Click the button above to add the clinic's first provider profile."
+        />
       ) : (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-border-color/15 shadow-sm overflow-hidden">
@@ -317,50 +279,23 @@ export const ManageDoctors = () => {
           </div>
 
           {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <button
-                disabled={pagination.page === 1}
-                onClick={() => fetchDoctors(pagination.page - 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Previous
-              </button>
-              <span className="text-xs text-text-muted font-medium">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <button
-                disabled={pagination.page === pagination.totalPages}
-                onClick={() => fetchDoctors(pagination.page + 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={fetchDoctors}
+          />
         </div>
       )}
 
       {/* Profile Form Edit Modal Overlay */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-xl w-full border border-border-color/10 shadow-premium flex flex-col max-h-[90vh]">
-            
-            {/* Modal Header */}
-            <div className="p-5 border-b border-border-color/10 flex items-center justify-between">
-              <h3 className="font-heading font-bold text-text-heading text-lg">
-                {editingDoctor ? 'Edit Doctor Profile' : 'Add New Doctor Profile'}
-              </h3>
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-full text-text-muted hover:bg-bg-color hover:text-text-heading cursor-pointer"
-              >
-                <MdClose size={22} />
-              </button>
-            </div>
-
-            {/* Modal Form Scrollable Canvas */}
-            <form onSubmit={handleFormSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingDoctor ? 'Edit Doctor Profile' : 'Add New Doctor Profile'}
+        maxWidth="max-w-xl"
+      >
+        {/* Modal Form Scrollable Canvas */}
+        <form onSubmit={handleFormSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Full Name */}
@@ -539,44 +474,23 @@ export const ManageDoctors = () => {
                 </button>
               </div>
 
-            </form>
-          </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
       {/* Custom absolute-overlay confirmation modal for Deactivations */}
-      {confirmDeactivate && (
-        <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/60 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-border-color/10 shadow-premium p-6 space-y-4 text-center">
-            <div className="w-14 h-14 bg-danger/10 text-danger rounded-full flex items-center justify-center mx-auto">
-              <MdWarning size={28} />
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="font-heading font-bold text-text-heading text-lg">Deactivate Doctor Profile?</h3>
-              <p className="text-text-muted text-sm leading-relaxed">
-                Are you sure you want to deactivate <strong className="text-text-heading">{confirmDeactivate.fullName}</strong>? 
-                This hides their profile from searches and prevents patients from booking slots.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <button
-                onClick={() => setConfirmDeactivate(null)}
-                className="px-4.5 py-2 border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => executeToggleActive(confirmDeactivate._id, true)}
-                className="px-4.5 py-2 bg-danger hover:bg-red-600 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
-              >
-                Deactivate Provider
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!confirmDeactivate}
+        onClose={() => setConfirmDeactivate(null)}
+        onConfirm={() => executeToggleActive(confirmDeactivate._id, true)}
+        title="Deactivate Doctor Profile?"
+        description={
+          <>
+            Are you sure you want to deactivate <strong className="text-text-heading">{confirmDeactivate?.fullName}</strong>? 
+            This hides their profile from searches and prevents patients from booking slots.
+          </>
+        }
+        confirmText="Deactivate Provider"
+      />
 
     </div>
   );

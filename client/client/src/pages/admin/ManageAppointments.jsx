@@ -1,40 +1,28 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MdClose, MdEvent, MdVisibility, MdWarning, MdRefresh } from 'react-icons/md';
+import { MdEvent, MdVisibility } from 'react-icons/md';
+import ErrorState from '../../components/common/ErrorState';
+import EmptyState from '../../components/common/EmptyState';
+import Pagination from '../../components/common/Pagination';
+import Loader from '../../components/common/Loader';
+import Modal from '../../components/common/Modal';
+import useAdminFetch from '../../hooks/useAdminFetch';
+import { getStatusClass } from '../../utils/helpers';
 
 export const ManageAppointments = () => {
-  const [appointments, setAppointments] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    items: appointments,
+    pagination,
+    loading,
+    error,
+    setError,
+    fetchData: fetchAppointments,
+  } = useAdminFetch('/admin/appointments', 10, 'Could not retrieve appointments records.');
   const [viewingAppointment, setViewingAppointment] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const fetchAppointments = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get(`/admin/appointments?page=${page}&limit=10`);
-      setAppointments(res?.items || []);
-      setPagination({
-        page: res?.page || page,
-        totalPages: res?.totalPages || 1
-      });
-    } catch (err) {
-      setError(err.message || 'Could not retrieve appointments records.');
-      toast.error('Network Error: Failed to contact the server.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchAppointments(1);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [fetchAppointments]);
 
   const handleStatusChange = async (id, newStatus) => {
     setUpdatingId(id);
@@ -49,39 +37,17 @@ export const ManageAppointments = () => {
     }
   };
 
-  // Helper for status badge styling
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-success/15 text-success';
-      case 'completed':
-        return 'bg-primary/15 text-primary';
-      case 'cancelled':
-        return 'bg-danger/15 text-danger';
-      default:
-        return 'bg-warning/15 text-warning';
-    }
-  };
+
 
   // Connection failure fallback banner
   if (error) {
     return (
-      <div className="bg-white p-12 text-center rounded-2xl border border-danger/25 shadow-sm max-w-lg mx-auto my-8 space-y-4">
-        <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center text-danger mx-auto">
-          <MdWarning size={32} />
-        </div>
-        <h3 className="font-heading font-bold text-text-heading text-lg">Connection Failure</h3>
-        <p className="text-text-muted text-sm leading-relaxed">
-          Could not connect to the clinical database server. Please check your network connection and verify if the service is running.
-        </p>
-        <button
-          onClick={() => { setError(null); fetchAppointments(1); }}
-          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer mx-auto"
-        >
-          <MdRefresh size={16} />
-          <span>Try Again</span>
-        </button>
-      </div>
+      <ErrorState
+        onRetry={() => {
+          setError(null);
+          fetchAppointments(1);
+        }}
+      />
     );
   }
 
@@ -98,15 +64,13 @@ export const ManageAppointments = () => {
 
       {/* Main Table Canvas */}
       {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-border-color/15 shadow-sm text-text-muted">
-          Loading appointments...
-        </div>
+        <Loader />
       ) : appointments.length === 0 ? (
-        <div className="bg-white p-16 text-center rounded-2xl border border-border-color/15 shadow-sm border-2 border-dashed border-border-color/10">
-          <MdEvent size={48} className="mx-auto text-border-color mb-3" />
-          <h3 className="font-bold text-text-heading">No Appointments Scheduled</h3>
-          <p className="text-text-muted text-sm mt-1">Patient appointment slots will appear here once booked.</p>
-        </div>
+        <EmptyState
+          Icon={MdEvent}
+          title="No Appointments Scheduled"
+          description="Patient appointment slots will appear here once booked."
+        />
       ) : (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-border-color/15 shadow-sm overflow-hidden">
@@ -173,108 +137,82 @@ export const ManageAppointments = () => {
           </div>
 
           {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <button
-                disabled={pagination.page === 1}
-                onClick={() => fetchAppointments(pagination.page - 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Previous
-              </button>
-              <span className="text-xs text-text-muted font-medium">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <button
-                disabled={pagination.page === pagination.totalPages}
-                onClick={() => fetchAppointments(pagination.page + 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={fetchAppointments}
+          />
         </div>
       )}
 
       {/* Details Modal Overlay */}
-      {viewingAppointment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-lg w-full border border-border-color/10 shadow-premium p-6 space-y-4">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-border-color/10">
-              <h3 className="font-heading font-bold text-text-heading text-lg">Appointment Details</h3>
-              <button 
-                onClick={() => setViewingAppointment(null)}
-                className="p-1 rounded-full text-text-muted hover:bg-bg-color hover:text-text-heading cursor-pointer"
-              >
-                <MdClose size={22} />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="space-y-4 text-sm text-text-body">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-text-muted font-semibold">Patient Name</p>
-                  <p className="font-semibold text-text-heading">{viewingAppointment.patientName}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-muted font-semibold">Patient Contact</p>
-                  <p className="font-semibold text-text-heading">{viewingAppointment.patientPhone}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-muted font-semibold">Age / Gender</p>
-                  <p className="text-text-heading">
-                    {viewingAppointment.patientAge} years old / {viewingAppointment.patientGender}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-muted font-semibold">Scheduled Time</p>
-                  <p className="text-text-heading">
-                    {new Date(viewingAppointment.date).toLocaleDateString(undefined, { 
-                      month: 'long', 
-                      day: 'numeric', 
-                      year: 'numeric' 
-                    })} at {viewingAppointment.timeSlot}
-                  </p>
-                </div>
-              </div>
-
+      <Modal
+        isOpen={!!viewingAppointment}
+        onClose={() => setViewingAppointment(null)}
+        title="Appointment Details"
+        maxWidth="max-w-lg"
+      >
+        <div className="p-6 space-y-4">
+          {/* Modal Content */}
+          <div className="space-y-4 text-sm text-text-body">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-text-muted font-semibold">Reason for Visit</p>
-                <div className="p-3 bg-bg-color/50 rounded-lg border border-border-color/5 mt-1">
-                  {viewingAppointment.reasonForVisit || 'No specific symptoms or reasons reported.'}
+                <p className="text-xs text-text-muted font-semibold">Patient Name</p>
+                <p className="font-semibold text-text-heading">{viewingAppointment?.patientName}</p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted font-semibold">Patient Contact</p>
+                <p className="font-semibold text-text-heading">{viewingAppointment?.patientPhone}</p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted font-semibold">Age / Gender</p>
+                <p className="text-text-heading">
+                  {viewingAppointment?.patientAge} years old / {viewingAppointment?.patientGender}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-text-muted font-semibold">Scheduled Time</p>
+                <p className="text-text-heading">
+                  {viewingAppointment && new Date(viewingAppointment.date).toLocaleDateString(undefined, { 
+                    month: 'long', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                  })} at {viewingAppointment?.timeSlot}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs text-text-muted font-semibold">Reason for Visit</p>
+              <div className="p-3 bg-bg-color/50 rounded-lg border border-border-color/5 mt-1">
+                {viewingAppointment?.reasonForVisit || 'No specific symptoms or reasons reported.'}
+              </div>
+            </div>
+
+            {viewingAppointment?.userId && (
+              <div className="p-3.5 bg-primary/5 rounded-xl border border-primary/10">
+                <h4 className="text-xs font-bold text-primary">Registered Account Details</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs mt-2 text-text-body">
+                  <p>Name: {viewingAppointment.userId.fullName}</p>
+                  <p>Phone: {viewingAppointment.userId.phone || 'N/A'}</p>
+                  <p className="col-span-2">Email: {viewingAppointment.userId.email}</p>
                 </div>
               </div>
+            )}
+          </div>
 
-              {viewingAppointment.userId && (
-                <div className="p-3.5 bg-primary/5 rounded-xl border border-primary/10">
-                  <h4 className="text-xs font-bold text-primary">Registered Account Details</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs mt-2 text-text-body">
-                    <p>Name: {viewingAppointment.userId.fullName}</p>
-                    <p>Phone: {viewingAppointment.userId.phone || 'N/A'}</p>
-                    <p className="col-span-2">Email: {viewingAppointment.userId.email}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end pt-3 border-t border-border-color/10">
-              <button
-                type="button"
-                onClick={() => setViewingAppointment(null)}
-                className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-lg shadow-sm transition-all cursor-pointer"
-              >
-                Close Details
-              </button>
-            </div>
-
+          {/* Modal Actions */}
+          <div className="flex items-center justify-end pt-3 border-t border-border-color/10">
+            <button
+              type="button"
+              onClick={() => setViewingAppointment(null)}
+              className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-semibold rounded-lg shadow-sm transition-all cursor-pointer"
+            >
+              Close Details
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
 
     </div>
   );

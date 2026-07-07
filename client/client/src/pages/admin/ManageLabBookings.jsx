@@ -1,39 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MdBiotech, MdWarning, MdRefresh } from 'react-icons/md';
+import { MdBiotech } from 'react-icons/md';
+import ErrorState from '../../components/common/ErrorState';
+import EmptyState from '../../components/common/EmptyState';
+import Pagination from '../../components/common/Pagination';
+import Loader from '../../components/common/Loader';
+import useAdminFetch from '../../hooks/useAdminFetch';
+import { getStatusClass } from '../../utils/helpers';
 
 export const ManageLabBookings = () => {
-  const [bookings, setBookings] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    items: bookings,
+    pagination,
+    loading,
+    error,
+    setError,
+    fetchData: fetchBookings,
+  } = useAdminFetch('/admin/lab-bookings', 10, 'Could not retrieve laboratory bookings.');
   const [updatingId, setUpdatingId] = useState(null);
 
-  const fetchBookings = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get(`/admin/lab-bookings?page=${page}&limit=10`);
-      setBookings(res?.items || []);
-      setPagination({
-        page: res?.page || page,
-        totalPages: res?.totalPages || 1
-      });
-    } catch (err) {
-      setError(err.message || 'Could not retrieve laboratory bookings.');
-      toast.error('Network Error: Failed to contact the server.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchBookings(1);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [fetchBookings]);
 
   const handleStatusChange = async (id, newStatus) => {
     setUpdatingId(id);
@@ -48,39 +35,18 @@ export const ManageLabBookings = () => {
     }
   };
 
-  // Helper for status badge styling
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-success/15 text-success';
-      case 'completed':
-        return 'bg-primary/15 text-primary';
-      case 'cancelled':
-        return 'bg-danger/15 text-danger';
-      default:
-        return 'bg-warning/15 text-warning';
-    }
-  };
+
 
   // Connection failure fallback banner
   if (error) {
     return (
-      <div className="bg-white p-12 text-center rounded-2xl border border-danger/25 shadow-sm max-w-lg mx-auto my-8 space-y-4">
-        <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center text-danger mx-auto">
-          <MdWarning size={32} />
-        </div>
-        <h3 className="font-heading font-bold text-text-heading text-lg">Connection Failure</h3>
-        <p className="text-text-muted text-sm leading-relaxed">
-          Could not connect to the laboratory database server. Please check your network connection and verify if the service is running.
-        </p>
-        <button
-          onClick={() => { setError(null); fetchBookings(1); }}
-          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer mx-auto"
-        >
-          <MdRefresh size={16} />
-          <span>Try Again</span>
-        </button>
-      </div>
+      <ErrorState
+        message="Could not connect to the laboratory database server. Please check your network connection and verify if the service is running."
+        onRetry={() => {
+          setError(null);
+          fetchBookings(1);
+        }}
+      />
     );
   }
 
@@ -97,15 +63,13 @@ export const ManageLabBookings = () => {
 
       {/* Main Table Canvas */}
       {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-border-color/15 shadow-sm text-text-muted">
-          Loading bookings...
-        </div>
+        <Loader />
       ) : bookings.length === 0 ? (
-        <div className="bg-white p-16 text-center rounded-2xl shadow-sm border-2 border-dashed border-border-color/10">
-          <MdBiotech size={48} className="mx-auto text-border-color mb-3" />
-          <h3 className="font-bold text-text-heading">No Lab Bookings Scheduled</h3>
-          <p className="text-text-muted text-sm mt-1">Patient lab checkup slots will appear here once booked.</p>
-        </div>
+        <EmptyState
+          Icon={MdBiotech}
+          title="No Lab Bookings Scheduled"
+          description="Patient lab checkup slots will appear here once booked."
+        />
       ) : (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-border-color/15 shadow-sm overflow-hidden">
@@ -168,27 +132,11 @@ export const ManageLabBookings = () => {
           </div>
 
           {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <button
-                disabled={pagination.page === 1}
-                onClick={() => fetchBookings(pagination.page - 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Previous
-              </button>
-              <span className="text-xs text-text-muted font-medium">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <button
-                disabled={pagination.page === pagination.totalPages}
-                onClick={() => fetchBookings(pagination.page + 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={fetchBookings}
+          />
         </div>
       )}
 

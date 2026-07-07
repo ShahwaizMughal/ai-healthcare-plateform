@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { MdCheck, MdEmail, MdWarning, MdRefresh } from 'react-icons/md';
+import { MdCheck, MdEmail } from 'react-icons/md';
+import ErrorState from '../../components/common/ErrorState';
+import EmptyState from '../../components/common/EmptyState';
+import Pagination from '../../components/common/Pagination';
+import Loader from '../../components/common/Loader';
 
 export const ContactMessages = () => {
   const [messages, setMessages] = useState([]);
@@ -52,22 +56,12 @@ export const ContactMessages = () => {
   // Connection failure fallback banner
   if (error) {
     return (
-      <div className="bg-white p-12 text-center rounded-2xl border border-danger/25 shadow-sm max-w-lg mx-auto my-8 space-y-4">
-        <div className="w-16 h-16 bg-danger/10 rounded-full flex items-center justify-center text-danger mx-auto">
-          <MdWarning size={32} />
-        </div>
-        <h3 className="font-heading font-bold text-text-heading text-lg">Connection Failure</h3>
-        <p className="text-text-muted text-sm leading-relaxed">
-          Could not connect to the clinical database server. Please check your network connection and verify if the service is running.
-        </p>
-        <button
-          onClick={() => { setError(null); fetchMessages(1); }}
-          className="flex items-center gap-1.5 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer mx-auto"
-        >
-          <MdRefresh size={16} />
-          <span>Try Again</span>
-        </button>
-      </div>
+      <ErrorState
+        onRetry={() => {
+          setError(null);
+          fetchMessages(1);
+        }}
+      />
     );
   }
 
@@ -99,15 +93,13 @@ export const ContactMessages = () => {
 
       {/* Messages Canvas */}
       {loading ? (
-        <div className="bg-white p-12 text-center rounded-2xl border border-border-color/15 shadow-sm text-text-muted">
-          Loading messages...
-        </div>
+        <Loader />
       ) : messages.length === 0 ? (
-        <div className="bg-white p-16 text-center rounded-2xl shadow-sm border-2 border-dashed border-border-color/10">
-          <MdEmail size={48} className="mx-auto text-border-color mb-3" />
-          <h3 className="font-bold text-text-heading">Inbox is Empty</h3>
-          <p className="text-text-muted text-sm mt-1">No customer inquiries match this filter.</p>
-        </div>
+        <EmptyState
+          Icon={MdEmail}
+          title="Inbox is Empty"
+          description="No customer inquiries match this filter."
+        />
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
@@ -161,27 +153,11 @@ export const ContactMessages = () => {
           </div>
 
           {/* Pagination Controls */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
-              <button
-                disabled={pagination.page === 1}
-                onClick={() => fetchMessages(pagination.page - 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Previous
-              </button>
-              <span className="text-xs text-text-muted font-medium">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <button
-                disabled={pagination.page === pagination.totalPages}
-                onClick={() => fetchMessages(pagination.page + 1)}
-                className="px-4 py-2 bg-white border border-border-color/20 text-xs font-semibold rounded-lg hover:bg-bg-color disabled:opacity-50 transition-all cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={fetchMessages}
+          />
         </div>
       )}
     </div>
