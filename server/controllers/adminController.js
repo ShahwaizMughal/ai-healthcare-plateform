@@ -1,10 +1,10 @@
-import Doctor from '../models/Doctor.js';
-import Medicine from '../models/Medicine.js';
-import Blog from '../models/Blog.js';
-import Appointment from '../models/Appointment.js';
-import Order from '../models/Order.js';
-import LabBooking from '../models/LabBooking.js';
-import ContactMessage from '../models/ContactMessage.js';
+import * as doctorService from '../services/doctorService.js';
+import * as medicineService from '../services/medicineService.js';
+import * as blogService from '../services/blogService.js';
+import * as appointmentService from '../services/appointmentService.js';
+import * as orderService from '../services/orderService.js';
+import * as labBookingService from '../services/labBookingService.js';
+import * as messageService from '../services/messageService.js';
 
 // ─────────────────────────────────────────────
 // DOCTORS CRUD
@@ -19,7 +19,7 @@ export const createDoctor = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Required fields are missing.' });
     }
 
-    const doctor = await Doctor.create({
+    const doctor = await doctorService.createDoctor({
       fullName,
       specialization,
       qualification,
@@ -27,7 +27,7 @@ export const createDoctor = async (req, res, next) => {
       profileImageUrl,
       bio,
       consultationFee,
-      availability: availability || []
+      availability: availability || [],
     });
 
     res.status(201).json({ success: true, data: { doctor } });
@@ -40,7 +40,7 @@ export const createDoctor = async (req, res, next) => {
 export const updateDoctor = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const doctor = await Doctor.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
+    const doctor = await doctorService.updateDoctor(id, req.body);
 
     if (!doctor) {
       return res.status(404).json({ success: false, message: 'Doctor not found.' });
@@ -56,8 +56,7 @@ export const updateDoctor = async (req, res, next) => {
 export const deleteDoctor = async (req, res, next) => {
   try {
     const { id } = req.params;
-    // Perform soft delete to preserve historical booking data integrity
-    const doctor = await Doctor.findByIdAndUpdate(id, { isActive: false }, { new: true });
+    const doctor = await doctorService.deleteDoctor(id);
 
     if (!doctor) {
       return res.status(404).json({ success: false, message: 'Doctor not found.' });
@@ -82,7 +81,7 @@ export const createMedicine = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Required fields are missing.' });
     }
 
-    const medicine = await Medicine.create({
+    const medicine = await medicineService.createMedicine({
       name,
       description,
       dosage,
@@ -90,7 +89,7 @@ export const createMedicine = async (req, res, next) => {
       price,
       imageUrl,
       stockQuantity,
-      requiresPrescription: requiresPrescription || false
+      requiresPrescription: requiresPrescription || false,
     });
 
     res.status(201).json({ success: true, data: { medicine } });
@@ -103,7 +102,7 @@ export const createMedicine = async (req, res, next) => {
 export const updateMedicine = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const medicine = await Medicine.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
+    const medicine = await medicineService.updateMedicine(id, req.body);
 
     if (!medicine) {
       return res.status(404).json({ success: false, message: 'Medicine not found.' });
@@ -119,8 +118,7 @@ export const updateMedicine = async (req, res, next) => {
 export const deleteMedicine = async (req, res, next) => {
   try {
     const { id } = req.params;
-    // Perform soft delete to preserve historical order logs
-    const medicine = await Medicine.findByIdAndUpdate(id, { isActive: false }, { new: true });
+    const medicine = await medicineService.deleteMedicine(id);
 
     if (!medicine) {
       return res.status(404).json({ success: false, message: 'Medicine not found.' });
@@ -145,18 +143,14 @@ export const createBlog = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Required fields are missing.' });
     }
 
-    // Auto-generate slug from title
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-
-    const blog = await Blog.create({
+    const blog = await blogService.createBlog({
       title,
-      slug,
       category,
       content,
       excerpt,
       coverImageUrl,
       author,
-      status: status || 'draft'
+      status: status || 'draft',
     });
 
     res.status(201).json({ success: true, data: { blog } });
@@ -169,13 +163,7 @@ export const createBlog = async (req, res, next) => {
 export const updateBlog = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
-    // If title is changing, regenerate slug
-    if (req.body.title) {
-      req.body.slug = req.body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-    }
-
-    const blog = await Blog.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
+    const blog = await blogService.updateBlog(id, req.body);
 
     if (!blog) {
       return res.status(404).json({ success: false, message: 'Blog post not found.' });
@@ -191,8 +179,7 @@ export const updateBlog = async (req, res, next) => {
 export const deleteBlog = async (req, res, next) => {
   try {
     const { id } = req.params;
-    // Perform soft delete by reverting to draft status
-    const blog = await Blog.findByIdAndUpdate(id, { status: 'draft' }, { new: true });
+    const blog = await blogService.deleteBlog(id);
 
     if (!blog) {
       return res.status(404).json({ success: false, message: 'Blog post not found.' });
@@ -218,7 +205,7 @@ export const updateAppointmentStatus = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid status. Must be pending, confirmed, completed, or cancelled.' });
     }
 
-    const appointment = await Appointment.findByIdAndUpdate(id, { status }, { new: true });
+    const appointment = await appointmentService.updateAppointmentStatus(id, status);
 
     if (!appointment) {
       return res.status(404).json({ success: false, message: 'Appointment not found.' });
@@ -240,7 +227,7 @@ export const updateOrderStatus = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid status. Must be placed, processing, shipped, delivered, or cancelled.' });
     }
 
-    const order = await Order.findByIdAndUpdate(id, { status }, { new: true });
+    const order = await orderService.updateOrderStatus(id, status);
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found.' });
@@ -262,7 +249,7 @@ export const updateLabBookingStatus = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid status. Must be pending, confirmed, completed, or cancelled.' });
     }
 
-    const labBooking = await LabBooking.findByIdAndUpdate(id, { status }, { new: true });
+    const labBooking = await labBookingService.updateLabBookingStatus(id, status);
 
     if (!labBooking) {
       return res.status(404).json({ success: false, message: 'Lab booking not found.' });
@@ -284,30 +271,11 @@ export const getContactMessages = async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
 
-    const filter = {};
-    if (req.query.status === 'unread') {
-      filter.isRead = false;
-    } else if (req.query.status === 'read') {
-      filter.isRead = true;
-    }
-
-    const [items, totalItems] = await Promise.all([
-      ContactMessage.find(filter)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-      ContactMessage.countDocuments(filter),
-    ]);
+    const result = await messageService.getContactMessages(req.query.status, page, limit);
 
     res.status(200).json({
       success: true,
-      data: {
-        items,
-        page,
-        limit,
-        totalItems,
-        totalPages: Math.ceil(totalItems / limit) || 1
-      }
+      data: result,
     });
   } catch (err) {
     next(err);
@@ -318,7 +286,7 @@ export const getContactMessages = async (req, res, next) => {
 export const markMessageRead = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const message = await ContactMessage.findByIdAndUpdate(id, { isRead: true }, { new: true });
+    const message = await messageService.markMessageRead(id);
 
     if (!message) {
       return res.status(404).json({ success: false, message: 'Message not found.' });
@@ -336,23 +304,11 @@ export const getDoctors = async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
 
-    const [items, totalItems] = await Promise.all([
-      Doctor.find()
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-      Doctor.countDocuments(),
-    ]);
+    const result = await doctorService.getDoctors(page, limit);
 
     res.status(200).json({
       success: true,
-      data: {
-        items,
-        page,
-        limit,
-        totalItems,
-        totalPages: Math.ceil(totalItems / limit) || 1
-      }
+      data: result,
     });
   } catch (err) {
     next(err);
@@ -365,23 +321,11 @@ export const getMedicines = async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
 
-    const [items, totalItems] = await Promise.all([
-      Medicine.find()
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-      Medicine.countDocuments(),
-    ]);
+    const result = await medicineService.getMedicines(page, limit);
 
     res.status(200).json({
       success: true,
-      data: {
-        items,
-        page,
-        limit,
-        totalItems,
-        totalPages: Math.ceil(totalItems / limit) || 1
-      }
+      data: result,
     });
   } catch (err) {
     next(err);
@@ -394,23 +338,11 @@ export const getBlogs = async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
 
-    const [items, totalItems] = await Promise.all([
-      Blog.find()
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-      Blog.countDocuments(),
-    ]);
+    const result = await blogService.getBlogs(page, limit);
 
     res.status(200).json({
       success: true,
-      data: {
-        items,
-        page,
-        limit,
-        totalItems,
-        totalPages: Math.ceil(totalItems / limit) || 1
-      }
+      data: result,
     });
   } catch (err) {
     next(err);
@@ -423,25 +355,11 @@ export const getAppointments = async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
 
-    const [items, totalItems] = await Promise.all([
-      Appointment.find()
-        .populate('doctorId', 'fullName specialization')
-        .populate('userId', 'fullName email phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-      Appointment.countDocuments(),
-    ]);
+    const result = await appointmentService.getAppointments(page, limit);
 
     res.status(200).json({
       success: true,
-      data: {
-        items,
-        page,
-        limit,
-        totalItems,
-        totalPages: Math.ceil(totalItems / limit) || 1
-      }
+      data: result,
     });
   } catch (err) {
     next(err);
@@ -454,24 +372,11 @@ export const getOrders = async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
 
-    const [items, totalItems] = await Promise.all([
-      Order.find()
-        .populate('userId', 'fullName email phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-      Order.countDocuments(),
-    ]);
+    const result = await orderService.getOrders(page, limit);
 
     res.status(200).json({
       success: true,
-      data: {
-        items,
-        page,
-        limit,
-        totalItems,
-        totalPages: Math.ceil(totalItems / limit) || 1
-      }
+      data: result,
     });
   } catch (err) {
     next(err);
@@ -484,25 +389,11 @@ export const getLabBookings = async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit, 10) || 15, 50);
 
-    const [items, totalItems] = await Promise.all([
-      LabBooking.find()
-        .populate('labTestId', 'name category price')
-        .populate('userId', 'fullName email phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-      LabBooking.countDocuments(),
-    ]);
+    const result = await labBookingService.getLabBookings(page, limit);
 
     res.status(200).json({
       success: true,
-      data: {
-        items,
-        page,
-        limit,
-        totalItems,
-        totalPages: Math.ceil(totalItems / limit) || 1
-      }
+      data: result,
     });
   } catch (err) {
     next(err);

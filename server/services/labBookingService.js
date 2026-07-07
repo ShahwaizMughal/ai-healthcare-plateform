@@ -1,23 +1,23 @@
-import Appointment from '../models/Appointment.js';
+import LabBooking from '../models/LabBooking.js';
 
 /**
- * Retrieves a paginated list of appointments populated with doctor and user details.
+ * Retrieves a paginated list of lab test bookings populated with lab test and user info.
  *
  * @param {number} page - Current page number
  * @param {number} limit - Items per page limit
  * @returns {Promise<object>} Paginated result structure
  */
-export const getAppointments = async (page = 1, limit = 15) => {
+export const getLabBookings = async (page = 1, limit = 15) => {
   const skip = (page - 1) * limit;
 
   const [items, totalItems] = await Promise.all([
-    Appointment.find()
-      .populate('doctorId', 'fullName specialization')
+    LabBooking.find()
+      .populate('labTestId', 'name category price')
       .populate('userId', 'fullName email phone')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
-    Appointment.countDocuments(),
+    LabBooking.countDocuments(),
   ]);
 
   return {
@@ -30,12 +30,12 @@ export const getAppointments = async (page = 1, limit = 15) => {
 };
 
 /**
- * Updates status of an existing appointment.
+ * Updates status of an existing lab booking.
  *
- * @param {string} id - Appointment ID
+ * @param {string} id - Lab booking ID
  * @param {string} status - Target status string ('pending', 'confirmed', 'completed', 'cancelled')
- * @returns {Promise<object|null>} Updated appointment document
+ * @returns {Promise<object|null>} Updated lab booking document
  */
-export const updateAppointmentStatus = async (id, status) => {
-  return await Appointment.findByIdAndUpdate(id, { status }, { new: true });
+export const updateLabBookingStatus = async (id, status) => {
+  return await LabBooking.findByIdAndUpdate(id, { status }, { new: true });
 };
