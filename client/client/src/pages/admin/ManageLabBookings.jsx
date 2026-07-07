@@ -29,7 +29,10 @@ export const ManageLabBookings = () => {
   };
 
   useEffect(() => {
-    fetchBookings(1);
+    const timer = setTimeout(() => {
+      fetchBookings(1);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleStatusChange = async (id, newStatus) => {
@@ -98,7 +101,7 @@ export const ManageLabBookings = () => {
           Loading bookings...
         </div>
       ) : bookings.length === 0 ? (
-        <div className="bg-white p-16 text-center rounded-2xl border border-border-color/15 shadow-sm border-2 border-dashed border-border-color/10">
+        <div className="bg-white p-16 text-center rounded-2xl shadow-sm border-2 border-dashed border-border-color/10">
           <MdBiotech size={48} className="mx-auto text-border-color mb-3" />
           <h3 className="font-bold text-text-heading">No Lab Bookings Scheduled</h3>
           <p className="text-text-muted text-sm mt-1">Patient lab checkup slots will appear here once booked.</p>

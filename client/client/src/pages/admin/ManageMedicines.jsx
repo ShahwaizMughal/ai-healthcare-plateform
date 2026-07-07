@@ -52,7 +52,10 @@ export const ManageMedicines = () => {
   };
 
   useEffect(() => {
-    fetchMedicines(1);
+    const timer = setTimeout(() => {
+      fetchMedicines(1);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const validateForm = () => {

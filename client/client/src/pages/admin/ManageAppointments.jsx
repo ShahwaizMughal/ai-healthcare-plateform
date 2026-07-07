@@ -30,7 +30,10 @@ export const ManageAppointments = () => {
   };
 
   useEffect(() => {
-    fetchAppointments(1);
+    const timer = setTimeout(() => {
+      fetchAppointments(1);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleStatusChange = async (id, newStatus) => {

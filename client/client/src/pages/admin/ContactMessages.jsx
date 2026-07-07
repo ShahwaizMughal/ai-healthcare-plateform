@@ -30,7 +30,10 @@ export const ContactMessages = () => {
   };
 
   useEffect(() => {
-    fetchMessages(1);
+    const timer = setTimeout(() => {
+      fetchMessages(1);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [filter]);
 
   const handleMarkAsRead = async (id) => {

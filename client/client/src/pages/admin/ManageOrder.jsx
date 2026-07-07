@@ -33,7 +33,10 @@ export const ManageOrder = () => {
   };
 
   useEffect(() => {
-    fetchOrders(1);
+    const timer = setTimeout(() => {
+      fetchOrders(1);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleStatusChangeClick = (id, newStatus) => {

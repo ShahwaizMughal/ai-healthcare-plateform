@@ -52,7 +52,10 @@ export const ManageBlogs = () => {
   };
 
   useEffect(() => {
-    fetchBlogs(1);
+    const timer = setTimeout(() => {
+      fetchBlogs(1);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const generateSlug = (text) => {

@@ -53,7 +53,10 @@ export const ManageDoctors = () => {
   };
 
   useEffect(() => {
-    fetchDoctors(1);
+    const timer = setTimeout(() => {
+      fetchDoctors(1);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const validateForm = () => {
