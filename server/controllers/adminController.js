@@ -15,10 +15,6 @@ export const createDoctor = async (req, res, next) => {
   try {
     const { fullName, specialization, qualification, experienceYears, profileImageUrl, bio, consultationFee, availability } = req.body;
 
-    if (!fullName || !specialization || !qualification || experienceYears === undefined || !profileImageUrl || consultationFee === undefined) {
-      return res.status(400).json({ success: false, message: 'Required fields are missing.' });
-    }
-
     const doctor = await doctorService.createDoctor({
       fullName,
       specialization,
@@ -76,10 +72,6 @@ export const deleteDoctor = async (req, res, next) => {
 export const createMedicine = async (req, res, next) => {
   try {
     const { name, description, dosage, category, price, imageUrl, stockQuantity, requiresPrescription } = req.body;
-
-    if (!name || !description || !dosage || !category || price === undefined || !imageUrl || stockQuantity === undefined) {
-      return res.status(400).json({ success: false, message: 'Required fields are missing.' });
-    }
 
     const medicine = await medicineService.createMedicine({
       name,
@@ -139,10 +131,6 @@ export const createBlog = async (req, res, next) => {
   try {
     const { title, category, content, excerpt, coverImageUrl, author, status } = req.body;
 
-    if (!title || !category || !content || !coverImageUrl || !author) {
-      return res.status(400).json({ success: false, message: 'Required fields are missing.' });
-    }
-
     const blog = await blogService.createBlog({
       title,
       category,
@@ -201,10 +189,6 @@ export const updateAppointmentStatus = async (req, res, next) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!status || !['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status. Must be pending, confirmed, completed, or cancelled.' });
-    }
-
     const appointment = await appointmentService.updateAppointmentStatus(id, status);
 
     if (!appointment) {
@@ -223,10 +207,6 @@ export const updateOrderStatus = async (req, res, next) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!status || !['placed', 'processing', 'shipped', 'delivered', 'cancelled'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status. Must be placed, processing, shipped, delivered, or cancelled.' });
-    }
-
     const order = await orderService.updateOrderStatus(id, status);
 
     if (!order) {
@@ -244,10 +224,6 @@ export const updateLabBookingStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-
-    if (!status || !['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status. Must be pending, confirmed, completed, or cancelled.' });
-    }
 
     const labBooking = await labBookingService.updateLabBookingStatus(id, status);
 
